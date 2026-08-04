@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from html import escape
 
 from aiogram import F
 from aiogram.types import Message
@@ -136,8 +137,8 @@ async def successful_question_reveal_payment(message: Message) -> None:
         username = f"@{author.username}" if author.username else "Не установлен"
         text = (
             "✅ <b>Автор вопроса раскрыт</b>\n\n"
-            f"Имя: <b>{full_name}</b>\n"
-            f"Username: <b>{username}</b>\n"
+            f"Имя: <b>{escape(full_name)}</b>\n"
+            f"Username: <b>{escape(username)}</b>\n"
             f"Telegram ID: <code>{author.id}</code>\n\n"
             f'<a href="tg://user?id={author.id}">Открыть профиль</a>'
         )

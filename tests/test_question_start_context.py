@@ -31,6 +31,22 @@ def test_context_expires_after_ttl() -> None:
     assert len(store) == 0
 
 
+def test_read_reordering_does_not_keep_expired_context_alive() -> None:
+    clock = FakeClock()
+    store = QuestionStartContextStore(ttl_seconds=10, clock=clock)
+    store.put(1, context(11))
+    clock.advance(5)
+    store.put(2, context(22))
+
+    # Reading user 1 moves it to the LRU tail, but must not renew its TTL.
+    assert store.get(1) == context(11)
+    clock.advance(6)
+
+    assert store.get(1) is None
+    assert store.get(2) == context(22)
+    assert store.keys_snapshot() == (2,)
+
+
 def test_store_evicts_oldest_entry_at_capacity() -> None:
     clock = FakeClock()
     store = QuestionStartContextStore(max_entries=2, clock=clock)
