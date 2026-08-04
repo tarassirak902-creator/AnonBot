@@ -14,10 +14,17 @@ def test_profile_insights_defines_dashboard_fields() -> None:
     assert "referrals_total: int = 0" in source
 
 
-def test_community_ui_is_registered() -> None:
+def test_community_ui_keeps_only_mutual_contacts() -> None:
     handlers = Path("app/handlers/__init__.py").read_text(encoding="utf-8")
     ui = Path("app/handlers/community_ui.py").read_text(encoding="utf-8")
+    repository = Path("app/database/community_repository.py").read_text(encoding="utf-8")
+    profile = Path("app/handlers/profile_view.py").read_text(encoding="utf-8")
+
     assert "from . import community_ui" in handlers
-    assert "community_preferences" in ui
-    assert "community_interest:" in ui
+    assert "community_connections" in ui
     assert "community_reconnect_toggle" in ui
+    assert "request_reconnect" in repository
+    assert "🎯 Интересы" not in profile
+    assert "community_language:" not in ui
+    assert "community_interest:" not in ui
+    assert "interests_json" not in repository
