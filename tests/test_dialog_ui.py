@@ -5,16 +5,18 @@ SOURCE = Path("app/handlers/dialog_ui.py").read_text(encoding="utf-8")
 INIT_SOURCE = Path("app/handlers/__init__.py").read_text(encoding="utf-8")
 
 
-def test_dialog_handlers_keep_reply_button_contracts() -> None:
-    assert 'F.text == "➡️ Следующий собеседник"' in SOURCE
-    assert 'F.text == "❌ Завершить диалог"' in SOURCE
+def test_dialog_handlers_keep_new_and_legacy_reply_button_contracts() -> None:
+    assert '"➡️ Новый собеседник"' in SOURCE
+    assert '"➡️ Следующий собеседник"' in SOURCE
+    assert '"⏹ Завершить"' in SOURCE
+    assert '"❌ Завершить диалог"' in SOURCE
 
 
 def test_dialog_copy_uses_shared_screen_format() -> None:
     assert 'screen(' in SOURCE
-    assert '"💬 Диалог завершён"' in SOURCE
-    assert '"ℹ️ Нет активного диалога"' in SOURCE
-    assert '"ℹ️ Диалог уже завершён"' in SOURCE
+    assert '"👋 Диалог завершён"' in SOURCE
+    assert '"🏠 Вы уже в главном меню"' in SOURCE
+    assert '"🔄 Ищем нового собеседника"' in SOURCE
 
 
 def test_dialog_logic_keeps_cleanup_and_followup_calls() -> None:
