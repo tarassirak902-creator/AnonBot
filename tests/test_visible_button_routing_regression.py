@@ -18,18 +18,35 @@ def test_full_menu_handler_module_is_present() -> None:
         assert handler in MENUS
 
 
-def test_redesigned_buttons_have_explicit_routes() -> None:
+def test_every_redesigned_primary_button_has_explicit_route() -> None:
     for label in (
         "🚀 Начать общение",
+        "❓ Анонимные вопросы",
         "🎮 Игры",
         "👤 Профиль",
+        "🎁 Пригласить друга",
+        "📣 Разместить рекламу",
+        "⚙️ Панель управления",
+    ):
+        assert f'F.text == "{label}"' in ALIASES
+
+
+def test_every_redesigned_dialog_button_has_explicit_route() -> None:
+    for label in (
         "🎮 Дуэль",
         "🎁 Подарок",
         "👤 Кто это?",
         "🚨 Жалоба",
     ):
-        assert label in ALIASES
+        assert f'F.text == "{label}"' in ALIASES
 
 
-def test_aliases_are_registered_after_restored_menus() -> None:
-    assert INIT.index("from . import menus") < INIT.index("from . import visible_button_aliases")
+def test_aliases_are_registered_after_all_target_modules() -> None:
+    alias_index = INIT.index("from . import visible_button_aliases")
+    for dependency in (
+        "from . import commands",
+        "from . import admin_overview_ui",
+        "from . import menus",
+        "from . import advertising",
+    ):
+        assert INIT.index(dependency) < alias_index
