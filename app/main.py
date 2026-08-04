@@ -8,6 +8,7 @@ from aiogram.types import BotCommand, MenuButtonCommands
 
 from app import database as db
 from app.core import config
+from app.core.deep_link_middleware import QuestionDeepLinkMiddleware
 from app.core.logging_config import setup_logging
 from app.core.middlewares import AntiFloodMiddleware
 from app.core.payment_middleware import PaymentIdempotencyMiddleware
@@ -36,6 +37,9 @@ async def main() -> None:
     await bot.set_chat_menu_button(menu_button=MenuButtonCommands())
 
     dispatcher = Dispatcher()
+    # Capture `/start ask_...` before subscription checks so the intended
+    # question target can be restored after the user confirms subscriptions.
+    dispatcher.message.outer_middleware(QuestionDeepLinkMiddleware())
     # Payment idempotency must wrap payment handlers before any side effects.
     dispatcher.message.outer_middleware(PaymentIdempotencyMiddleware())
     # Middleware is attached separately to messages and callback queries.
