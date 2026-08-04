@@ -50,9 +50,18 @@ async def _safe_reputation(user_id: int) -> dict:
 def get_profile_keyboard(is_vip: bool) -> InlineKeyboardMarkup:
     vip_btn_text = "👑 Управление VIP" if is_vip else "👑 Подключить VIP"
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🎁 Забрать бонус", callback_data="profile_daily_reward")],
-        [InlineKeyboardButton(text="🤝 Контакты", callback_data="community_connections")],
-        [InlineKeyboardButton(text="🏆 Мои достижения", callback_data="profile_achievements")],
+        [
+            InlineKeyboardButton(text="🎯 Задания", callback_data="engagement_missions"),
+            InlineKeyboardButton(text="🎁 Бонус", callback_data="profile_daily_reward"),
+        ],
+        [
+            InlineKeyboardButton(text="⚡ Активность", callback_data="user_activity_center"),
+            InlineKeyboardButton(text="🏆 Мои достижения", callback_data="profile_achievements"),
+        ],
+        [
+            InlineKeyboardButton(text="🤝 Контакты", callback_data="community_connections"),
+            InlineKeyboardButton(text="🕘 История", callback_data="community_dialog_history"),
+        ],
         [
             InlineKeyboardButton(text="⭐ Баланс и вывод", callback_data="profile_withdraw"),
             InlineKeyboardButton(text=vip_btn_text, callback_data="buy_vip_sub"),
@@ -131,7 +140,7 @@ async def build_profile_screen(user_id: int) -> tuple[str, InlineKeyboardMarkup]
                 metric("🚨", "Предупреждений", f"{warnings_count}/3"),
             )),
         ),
-        footer="Контакты появляются только после взаимного согласия.",
+        footer="Открой активность, чтобы увидеть личный недельный отчёт без анализа сообщений.",
     )
     return text, get_profile_keyboard(is_vip)
 

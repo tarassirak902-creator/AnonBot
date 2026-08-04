@@ -10,6 +10,7 @@ from .shared import db, router
 
 def _connections_keyboard(enabled: bool) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="📋 Мои контакты", callback_data="community_contacts_list")],
         [InlineKeyboardButton(
             text=("🤝 Сохранение: вкл" if enabled else "🚫 Сохранение: выкл"),
             callback_data="community_reconnect_toggle",
