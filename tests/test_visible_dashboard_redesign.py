@@ -9,7 +9,7 @@ def test_profile_is_action_first_dashboard() -> None:
     assert "🎁 Награды" in profile
     assert "🤝 Социальное" in profile
     assert "👑 Премиум" in profile
-    assert "🏆 Мои достижения" in hub
+    assert "🏆 Достижения" in hub
     assert "⭐ Баланс" in hub
     assert "🏠 На главную" in profile
 
