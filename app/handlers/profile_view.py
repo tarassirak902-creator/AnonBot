@@ -10,25 +10,25 @@ from app.services.profile_insights import (
 def get_profile_keyboard(is_vip: bool) -> InlineKeyboardMarkup:
     vip_btn_text = "👑 Управление VIP" if is_vip else "👑 Подключить VIP"
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🏆 Мои достижения", callback_data="profile_achievements")],
+        [InlineKeyboardButton(text="🎁 Забрать бонус", callback_data="profile_daily_reward")],
+        [InlineKeyboardButton(text="🏆 Достижения", callback_data="profile_achievements")],
         [
-            InlineKeyboardButton(text="⭐ Баланс и вывод", callback_data="profile_withdraw"),
+            InlineKeyboardButton(text="⭐ Баланс", callback_data="profile_withdraw"),
             InlineKeyboardButton(text=vip_btn_text, callback_data="buy_vip_sub"),
         ],
         [
-            InlineKeyboardButton(text="🎁 Мои подарки", callback_data="profile_my_received_gifts"),
-            InlineKeyboardButton(text="👥 Мои друзья", callback_data="profile_invited_users"),
+            InlineKeyboardButton(text="🎁 Подарки", callback_data="profile_my_received_gifts"),
+            InlineKeyboardButton(text="👥 Друзья", callback_data="profile_invited_users"),
         ],
         [
             InlineKeyboardButton(text="🔍 Раскрытия", callback_data="profile_my_revealed"),
             InlineKeyboardButton(text="🔄 Обновить", callback_data="profile_refresh"),
         ],
-        [InlineKeyboardButton(text="🏠 На главную", callback_data="nav_main_menu")],
+        [InlineKeyboardButton(text="🏠 Главная", callback_data="nav_main_menu")],
     ])
 
 
 async def build_profile_screen(user_id: int) -> tuple[str, InlineKeyboardMarkup] | None:
-    """Build a compact profile dashboard with the most useful data first."""
     user = await db.get_user(user_id)
     if not user:
         return None
@@ -43,37 +43,45 @@ async def build_profile_screen(user_id: int) -> tuple[str, InlineKeyboardMarkup]
     insights = await load_profile_insights(user_id, joined_str)
     achievements = build_achievements(insights, is_vip=is_vip, stars_balance=stars_balance)
     unlocked, total = achievement_progress(achievements)
+    reputation = await db.get_reputation(user_id)
 
     identity = first_name
     if username:
         identity += f" · @{username}"
 
-    status_line = "👑 VIP активен" if is_vip else "🌙 Обычный статус"
+    status_line = "👑 VIP" if is_vip else "🌙 Обычный"
+    rating_text = f"{reputation['score']:+.1f}%" if reputation['total'] else "нет оценок"
     text = screen(
-        "👤 Мой профиль",
+        "👤 Профиль",
         intro=(
             f"<b>{identity}</b>\n"
             f"{status_line} · ⭐ <b>{stars_balance}</b> · 🏆 <b>{unlocked}/{total}</b>"
         ),
         sections=(
-            section("Главное", (
-                metric("💬", "Диалогов завершено", insights.completed_chats),
-                metric("📅", "Дней с CASPER", insights.days_in_bot),
-                metric("🎁", "Подарков получено", insights.gifts_received),
-                metric("👥", "Друзей приглашено", insights.referrals_total),
+            section("Прогресс", (
+                metric("⚡", "Уровень", reputation["level"]),
+                metric("✨", "XP", reputation["xp"]),
+                metric("⭐", "Репутация", rating_text),
+                metric("🗳", "Оценок", reputation["total"]),
             )),
-            section("Анонимные вопросы", (
+            section("Активность", (
+                metric("💬", "Диалогов", insights.completed_chats),
+                metric("📅", "Дней с CASPER", insights.days_in_bot),
+                metric("🎁", "Подарков", insights.gifts_received),
+                metric("👥", "Друзей", insights.referrals_total),
+            )),
+            section("Вопросы", (
                 metric("📥", "Получено", insights.questions_received),
                 metric("✉️", "Отправлено", insights.questions_sent),
-                metric("✅", "Ответов получено", insights.answers_received),
-                metric("💬", "Ответов дано", insights.questions_answered),
+                metric("✅", "Ответов", insights.answers_received),
+                metric("💬", "Ответил", insights.questions_answered),
             )),
             section("Безопасность", (
-                metric("⚠️", "Жалоб отправлено", complaints),
+                metric("⚠️", "Жалоб", complaints),
                 metric("🚨", "Предупреждений", f"{warnings_count}/3"),
             )),
         ),
-        footer="Выберите, что хотите открыть.",
+        footer="Ежедневный бонус повышает XP и серию входов.",
     )
     return text, get_profile_keyboard(is_vip)
 
