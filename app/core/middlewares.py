@@ -1,12 +1,92 @@
 import asyncio
+import logging
 import time
 from collections import defaultdict
 from typing import Any, Awaitable, Callable, Dict
 
 from aiogram import BaseMiddleware
-from aiogram.types import CallbackQuery, TelegramObject
+from aiogram.types import CallbackQuery, Message, TelegramObject
 
 from app import database as db
+
+logger = logging.getLogger(__name__)
+
+
+class UpdateObservabilityMiddleware(BaseMiddleware):
+    """Log routed updates, suppress duplicate callbacks and contain handler errors."""
+
+    def __init__(self, callback_ttl: float = 3.0, cache_ttl: float = 600.0):
+        if callback_ttl <= 0:
+            raise ValueError("callback_ttl должен быть положительным")
+        if cache_ttl <= callback_ttl:
+            raise ValueError("cache_ttl должен быть больше callback_ttl")
+        self.callback_ttl = callback_ttl
+        self.cache_ttl = cache_ttl
+        self._callbacks: dict[str, float] = {}
+        self._processed = 0
+
+    def _prune(self, now: float) -> None:
+        stale_before = now - self.cache_ttl
+        for callback_id, seen_at in list(self._callbacks.items()):
+            if seen_at < stale_before:
+                self._callbacks.pop(callback_id, None)
+
+    @staticmethod
+    def _route(event: TelegramObject) -> str:
+        if isinstance(event, CallbackQuery):
+            return f"callback:{event.data or '-'}"
+        if isinstance(event, Message):
+            text = (event.text or event.caption or "").strip().replace("\n", " ")
+            return f"message:{text[:80] or event.content_type}"
+        return type(event).__name__
+
+    async def __call__(
+        self,
+        handler: Callable[[TelegramObject, Dict[str, Any]], Awaitable[Any]],
+        event: TelegramObject,
+        data: Dict[str, Any],
+    ) -> Any:
+        user = data.get("event_from_user")
+        user_id = getattr(user, "id", None)
+        route = self._route(event)
+        now = time.monotonic()
+
+        if isinstance(event, CallbackQuery):
+            seen_at = self._callbacks.get(event.id)
+            if seen_at is not None and now - seen_at < self.callback_ttl:
+                try:
+                    await event.answer()
+                except Exception:
+                    pass
+                logger.info("duplicate_update user_id=%s route=%s", user_id, route)
+                return None
+            self._callbacks[event.id] = now
+
+        logger.info("route_start user_id=%s route=%s", user_id, route)
+        started = time.monotonic()
+        try:
+            result = await handler(event, data)
+            logger.info(
+                "route_done user_id=%s route=%s duration_ms=%d",
+                user_id,
+                route,
+                int((time.monotonic() - started) * 1000),
+            )
+            return result
+        except Exception:
+            logger.exception("route_error user_id=%s route=%s", user_id, route)
+            try:
+                if isinstance(event, CallbackQuery):
+                    await event.answer("Не удалось выполнить действие. Попробуйте ещё раз.", show_alert=True)
+                elif isinstance(event, Message):
+                    await event.answer("⚠️ Не удалось выполнить действие. Попробуйте ещё раз.")
+            except Exception:
+                pass
+            return None
+        finally:
+            self._processed += 1
+            if self._processed % 500 == 0:
+                self._prune(time.monotonic())
 
 
 class AntiFloodMiddleware(BaseMiddleware):
@@ -51,8 +131,6 @@ class AntiFloodMiddleware(BaseMiddleware):
 
         user_id = user.id
         if await db.is_user_blocked(user_id):
-            # Заблокированный пользователь должен иметь возможность открыть
-            # единственную служебную кнопку с информацией о блокировке.
             if isinstance(event, CallbackQuery) and event.data == "is_banned_alert":
                 return await handler(event, data)
             if isinstance(event, CallbackQuery):
