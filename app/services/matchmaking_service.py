@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 
@@ -7,6 +8,9 @@ import aiosqlite
 
 from app.database.matchmaking_repository import try_match_user
 from app.database.repository import DB_PATH
+
+
+_MATCH_LOCK = asyncio.Lock()
 
 
 @dataclass(frozen=True)
@@ -70,38 +74,51 @@ async def recover_matchmaking_state(
 
 
 async def enqueue_or_match(user_id: int) -> MatchResult:
-    """Repair transient state, then use the canonical atomic matcher."""
-    recovered = await recover_matchmaking_state()
-    partner_id = await try_match_user(user_id)
-    if partner_id is not None:
-        return MatchResult(user_id, int(partner_id), False, recovered)
+    """Repair and match as one process-serialized operation.
 
-    async with aiosqlite.connect(DB_PATH, timeout=10) as conn:
-        row = await (
-            await conn.execute(
-                "SELECT partner_id FROM active_chats WHERE user_id=?",
-                (user_id,),
-            )
-        ).fetchone()
-        if row:
-            return MatchResult(user_id, int(row[0]), False, recovered)
-        queued = await (
-            await conn.execute("SELECT 1 FROM queues WHERE user_id=?", (user_id,))
-        ).fetchone()
-    return MatchResult(user_id, None, bool(queued), recovered)
+    SQLite already serializes the repository transaction. The process lock also
+    prevents a second coroutine from running recovery between another request's
+    recovery and canonical match transaction.
+    """
+    async with _MATCH_LOCK:
+        recovered = await recover_matchmaking_state()
+        partner_id = await try_match_user(user_id)
+        if partner_id is not None:
+            return MatchResult(user_id, int(partner_id), False, recovered)
+
+        async with aiosqlite.connect(DB_PATH, timeout=10) as conn:
+            row = await (
+                await conn.execute(
+                    "SELECT partner_id FROM active_chats WHERE user_id=?",
+                    (user_id,),
+                )
+            ).fetchone()
+            if row:
+                return MatchResult(user_id, int(row[0]), False, recovered)
+            queued = await (
+                await conn.execute("SELECT 1 FROM queues WHERE user_id=?", (user_id,))
+            ).fetchone()
+        return MatchResult(user_id, None, bool(queued), recovered)
 
 
 async def leave_queue(user_id: int) -> bool:
-    async with aiosqlite.connect(DB_PATH, timeout=10) as conn:
-        cursor = await conn.execute("DELETE FROM queues WHERE user_id=?", (user_id,))
-        await conn.commit()
-        return bool(cursor.rowcount)
+    async with _MATCH_LOCK:
+        async with aiosqlite.connect(DB_PATH, timeout=10) as conn:
+            cursor = await conn.execute("DELETE FROM queues WHERE user_id=?", (user_id,))
+            await conn.commit()
+            return bool(cursor.rowcount)
 
 
 async def matchmaking_health() -> dict[str, int]:
     """Return operational counters for admin diagnostics."""
     async with aiosqlite.connect(DB_PATH, timeout=10) as conn:
         queue = await (await conn.execute("SELECT COUNT(*) FROM queues")).fetchone()
+        oldest = await (
+            await conn.execute(
+                "SELECT COALESCE(MAX(0, CAST((julianday('now')-julianday(MIN(created_at)))*86400 AS INTEGER)),0) "
+                "FROM queues"
+            )
+        ).fetchone()
         broken = await (
             await conn.execute(
                 "SELECT COUNT(*) FROM active_chats a "
@@ -118,6 +135,7 @@ async def matchmaking_health() -> dict[str, int]:
         ).fetchone()
     return {
         "queue": int(queue[0] or 0) if queue else 0,
+        "oldest_wait_seconds": int(oldest[0] or 0) if oldest else 0,
         "broken_links": int(broken[0] or 0) if broken else 0,
         "self_links": int(self_links[0] or 0) if self_links else 0,
     }
