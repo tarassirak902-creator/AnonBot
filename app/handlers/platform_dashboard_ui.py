@@ -21,12 +21,13 @@ def _admin_ops_keyboard() -> InlineKeyboardMarkup:
         ],
         [
             InlineKeyboardButton(text="📈 Удержание", callback_data="admin_retention_dashboard"),
-            InlineKeyboardButton(text="🚨 Жалобы", callback_data="admin_complaints_dashboard"),
+            InlineKeyboardButton(text="🧾 Журнал", callback_data="admin_audit_journal"),
         ],
         [
+            InlineKeyboardButton(text="🚨 Жалобы", callback_data="admin_complaints_dashboard"),
             InlineKeyboardButton(text="👥 Пользователи", callback_data="admin_user_search"),
-            InlineKeyboardButton(text="📨 Рассылка", callback_data="admin_broadcast"),
         ],
+        [InlineKeyboardButton(text="📨 Рассылка", callback_data="admin_broadcast")],
         [InlineKeyboardButton(text="⬅️ Админка", callback_data="admin_back_to_panel")],
     ])
 
@@ -57,7 +58,7 @@ async def _admin_ops_text() -> str:
                 "При росте негативных оценок проверьте жалобы и здоровье платформы.",
             )),
         ),
-        footer="Технические аномалии доступны в разделе «Здоровье».",
+        footer="Журнал показывает агрегаты действий без содержимого переписки.",
     )
 
 
