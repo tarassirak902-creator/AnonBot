@@ -55,10 +55,13 @@ def get_profile_keyboard(is_vip: bool) -> InlineKeyboardMarkup:
             InlineKeyboardButton(text="🎁 Бонус", callback_data="profile_daily_reward"),
         ],
         [
+            InlineKeyboardButton(text="⚡ Активность", callback_data="user_activity_center"),
+            InlineKeyboardButton(text="🏆 Достижения", callback_data="profile_achievements"),
+        ],
+        [
             InlineKeyboardButton(text="🤝 Контакты", callback_data="community_connections"),
             InlineKeyboardButton(text="🕘 История", callback_data="community_dialog_history"),
         ],
-        [InlineKeyboardButton(text="🏆 Мои достижения", callback_data="profile_achievements")],
         [
             InlineKeyboardButton(text="⭐ Баланс и вывод", callback_data="profile_withdraw"),
             InlineKeyboardButton(text=vip_btn_text, callback_data="buy_vip_sub"),
@@ -137,7 +140,7 @@ async def build_profile_screen(user_id: int) -> tuple[str, InlineKeyboardMarkup]
                 metric("🚨", "Предупреждений", f"{warnings_count}/3"),
             )),
         ),
-        footer="Выполняй ежедневные задания, общайся и получай звёзды.",
+        footer="Открой активность, чтобы увидеть личный недельный отчёт без анализа сообщений.",
     )
     return text, get_profile_keyboard(is_vip)
 
