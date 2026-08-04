@@ -3,6 +3,11 @@ from __future__ import annotations
 from collections.abc import Iterator, MutableMapping
 from types import ModuleType
 
+from .question_presentation import (
+    build_answer_list_items,
+    build_question_list_items,
+    display_owner_name,
+)
 from .question_receiver import QuestionReceiverResolver
 from .question_start_context import QuestionStartContext, QuestionStartContextStore
 
@@ -41,8 +46,6 @@ class QuestionStartTargetMapping(MutableMapping[int, tuple[str, int, str]]):
             raise KeyError(user_id)
 
     def __iter__(self) -> Iterator[int]:
-        # Iteration is intentionally not used by the handler. Returning an
-        # empty iterator avoids exposing storage internals through the bridge.
         return iter(())
 
     def __len__(self) -> int:
@@ -61,14 +64,13 @@ class QuestionStartTargetMapping(MutableMapping[int, tuple[str, int, str]]):
         return context.token, context.owner_id, context.display_name
 
 
-
 def install_question_services(
     questions_module: ModuleType,
     *,
     max_start_contexts: int = 2_000,
     start_context_ttl_seconds: float = 30 * 60,
 ) -> None:
-    """Inject bounded state and receiver resolution into the legacy handler."""
+    """Inject service-layer behavior into the legacy question handler."""
 
     store = QuestionStartContextStore(
         max_entries=max_start_contexts,
@@ -84,4 +86,39 @@ def install_question_services(
     async def resolve_question_receiver(user_id: int, context: str, reference: str) -> int | None:
         return await resolver.resolve(user_id, context, reference)
 
+    def questions_list_inline(rows):
+        items = build_question_list_items(rows)
+        if not items:
+            return None
+        return questions_module.InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    questions_module.InlineKeyboardButton(
+                        text=item.text,
+                        callback_data=item.callback_data,
+                    )
+                ]
+                for item in items
+            ]
+        )
+
+    def answers_list_inline(rows):
+        items = build_answer_list_items(rows)
+        if not items:
+            return None
+        return questions_module.InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    questions_module.InlineKeyboardButton(
+                        text=item.text,
+                        callback_data=item.callback_data,
+                    )
+                ]
+                for item in items
+            ]
+        )
+
     questions_module._resolve_question_receiver = resolve_question_receiver
+    questions_module._display_name = display_owner_name
+    questions_module._questions_list_inline = questions_list_inline
+    questions_module._answers_list_inline = answers_list_inline
