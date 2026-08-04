@@ -66,52 +66,58 @@ async def _snapshot_matchmaking(path: str) -> MatchmakingSnapshot:
 
 
 async def _create_reliability_indexes(conn: aiosqlite.Connection) -> None:
-    statements = {
+    definitions: dict[str, tuple[tuple[str, set[str]], ...]] = {
         "anonymous_questions": (
-            "CREATE INDEX IF NOT EXISTS idx_questions_sender_created "
-            "ON anonymous_questions(sender_id,created_at DESC)",
-            "CREATE INDEX IF NOT EXISTS idx_questions_receiver_status_created "
-            "ON anonymous_questions(receiver_id,status,created_at DESC)",
+            (
+                "CREATE INDEX IF NOT EXISTS idx_questions_sender_created "
+                "ON anonymous_questions(sender_id,created_at DESC)",
+                {"sender_id", "created_at"},
+            ),
+            (
+                "CREATE INDEX IF NOT EXISTS idx_questions_receiver_status_created "
+                "ON anonymous_questions(receiver_id,status,created_at DESC)",
+                {"receiver_id", "status", "created_at"},
+            ),
         ),
-        "question_link_visits": (
+        "question_link_visits": ((
             "CREATE INDEX IF NOT EXISTS idx_question_visits_visitor "
             "ON question_link_visits(visitor_id,created_at DESC)",
-        ),
+            {"visitor_id", "created_at"},
+        ),),
         "purchases": (
-            "CREATE INDEX IF NOT EXISTS idx_purchases_buyer_type_time "
-            "ON purchases(buyer_id,type,timestamp DESC)",
-            "CREATE INDEX IF NOT EXISTS idx_purchases_receiver_type_time "
-            "ON purchases(receiver_id,type,timestamp DESC)",
+            (
+                "CREATE INDEX IF NOT EXISTS idx_purchases_buyer_type_time "
+                "ON purchases(buyer_id,type,timestamp DESC)",
+                {"buyer_id", "type", "timestamp"},
+            ),
+            (
+                "CREATE INDEX IF NOT EXISTS idx_purchases_receiver_type_time "
+                "ON purchases(receiver_id,type,timestamp DESC)",
+                {"receiver_id", "type", "timestamp"},
+            ),
         ),
-        "payment_ledger": (
+        "payment_ledger": ((
             "CREATE INDEX IF NOT EXISTS idx_payment_ledger_status_started "
             "ON payment_ledger(status,started_at)",
-        ),
-        "premium_deliveries": (
+            {"status", "started_at"},
+        ),),
+        "premium_deliveries": ((
             "CREATE INDEX IF NOT EXISTS idx_premium_delivery_status_created "
             "ON premium_deliveries(status,created_at)",
-        ),
-        "game_duels": (
+            {"status", "created_at"},
+        ),),
+        "game_duels": ((
             "CREATE INDEX IF NOT EXISTS idx_game_duels_status_created "
             "ON game_duels(status,created_at)",
-        ),
+            {"status", "created_at"},
+        ),),
     }
-    for table, table_statements in statements.items():
+    for table, indexes in definitions.items():
         if not await _table_exists(conn, table):
             continue
         columns = await _table_columns(conn, table)
-        for statement in table_statements:
-            # Some additive columns are created lazily by payment modules. Skip an
-            # index until every referenced column exists rather than failing startup.
-            referenced = {
-                token.strip("(),")
-                for token in statement.replace(" DESC", "").split()
-                if token.strip("(),") in {
-                    "sender_id", "receiver_id", "visitor_id", "created_at", "status",
-                    "buyer_id", "type", "timestamp", "started_at"
-                }
-            }
-            if referenced.issubset(columns):
+        for statement, required_columns in indexes:
+            if required_columns.issubset(columns):
                 await conn.execute(statement)
 
 
