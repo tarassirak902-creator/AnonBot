@@ -22,6 +22,8 @@ from . import admin_confirmation_ui
 from . import admin_warning_ui
 from . import user_actions_ui
 from . import dialog_ui
+from .search_ui import install_search_copy
+install_search_copy()
 from . import menus
 from . import profile_achievements
 # Payment/profile entry adapters must be registered before legacy profile callbacks.
