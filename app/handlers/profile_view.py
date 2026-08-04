@@ -1,4 +1,5 @@
 from .shared import *
+from app.core.ui_copy import metric, screen, section
 from app.services.profile_insights import (
     achievement_progress,
     build_achievements,
@@ -7,18 +8,24 @@ from app.services.profile_insights import (
 
 
 def get_profile_keyboard(is_vip: bool) -> InlineKeyboardMarkup:
-    vip_btn_text = "👑 VIP подписка активна (100 ⭐ / мес)" if is_vip else "👑 Купить VIP подписку (100 ⭐ / мес)"
+    vip_btn_text = "👑 VIP активен" if is_vip else "👑 Купить VIP"
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🏆 Мои достижения", callback_data="profile_achievements")],
-        [InlineKeyboardButton(text=vip_btn_text, callback_data="buy_vip_sub")],
-        [InlineKeyboardButton(text="💸 Вывести звёзды", callback_data="profile_withdraw")],
         [
-            InlineKeyboardButton(text="🎀 Полученные подарки", callback_data="profile_my_received_gifts"),
-            InlineKeyboardButton(text="🎁 Отправленные подарки", callback_data="profile_my_sent_gifts"),
+            InlineKeyboardButton(text="🏆 Достижения", callback_data="profile_achievements"),
+            InlineKeyboardButton(text="🔄 Обновить", callback_data="profile_refresh"),
         ],
-        [InlineKeyboardButton(text="🔍 Раскрытые собеседники", callback_data="profile_my_revealed")],
-        [InlineKeyboardButton(text="👥 Приглашённые пользователи", callback_data="profile_invited_users")],
-        [InlineKeyboardButton(text="🔄 Обновить статистику", callback_data="profile_refresh")],
+        [
+            InlineKeyboardButton(text=vip_btn_text, callback_data="buy_vip_sub"),
+            InlineKeyboardButton(text="💸 Вывод", callback_data="profile_withdraw"),
+        ],
+        [
+            InlineKeyboardButton(text="🎀 Полученные", callback_data="profile_my_received_gifts"),
+            InlineKeyboardButton(text="🎁 Отправленные", callback_data="profile_my_sent_gifts"),
+        ],
+        [
+            InlineKeyboardButton(text="🔍 Раскрытия", callback_data="profile_my_revealed"),
+            InlineKeyboardButton(text="👥 Приглашения", callback_data="profile_invited_users"),
+        ],
         [InlineKeyboardButton(text="🏠 Главное меню", callback_data="nav_main_menu")],
     ])
 
@@ -37,33 +44,38 @@ async def build_profile_screen(user_id: int) -> tuple[str, InlineKeyboardMarkup]
     insights = await load_profile_insights(user_id, joined_str)
     achievements = build_achievements(insights, is_vip=is_vip, stars_balance=stars_balance)
     unlocked, total = achievement_progress(achievements)
-    vip_status = "Активен ✨" if is_vip else "Не активирован"
 
-    text = (
-        "👤 <b>Профиль CASPER</b>\n"
-        "━━━━━━━━━━━━━━\n"
-        f"📅 В боте: <b>{insights.days_in_bot} дн.</b>\n"
-        f"👑 VIP: <b>{vip_status}</b>\n"
-        f"⭐ Баланс: <b>{stars_balance} ⭐</b>\n"
-        f"🏆 Достижения: <b>{unlocked}/{total}</b>\n\n"
-        "📊 <b>Активность</b>\n"
-        f"❓ Отправлено вопросов: <b>{insights.questions_sent}</b>\n"
-        f"📥 Получено вопросов: <b>{insights.questions_received}</b>\n"
-        f"💬 Дано ответов: <b>{insights.questions_answered}</b>\n"
-        f"✅ Получено ответов: <b>{insights.answers_received}</b>\n"
-        f"🔗 Переходов по ссылке: <b>{insights.link_visits}</b>\n"
-        f"🎁 Подарков отправлено: <b>{insights.gifts_sent}</b>\n"
-        f"🎀 Подарков получено: <b>{insights.gifts_received}</b>\n\n"
-        "🛡 <b>Безопасность</b>\n"
-        f"⚠️ Жалоб отправлено: <b>{complaints}</b>\n"
-        f"🚨 Предупреждений: <b>{warnings_count}/3</b>"
+    text = screen(
+        "👤 Профиль",
+        sections=(
+            section("Статус", (
+                metric("📅", "В боте", f"{insights.days_in_bot} дн."),
+                metric("👑", "VIP", "активен" if is_vip else "не активирован"),
+                metric("⭐", "Баланс", f"{stars_balance} ⭐"),
+                metric("🏆", "Достижения", f"{unlocked}/{total}"),
+            )),
+            section("Активность", (
+                metric("❓", "Вопросов отправлено", insights.questions_sent),
+                metric("📥", "Вопросов получено", insights.questions_received),
+                metric("💬", "Ответов дано", insights.questions_answered),
+                metric("✅", "Ответов получено", insights.answers_received),
+                metric("🔗", "Переходов по ссылке", insights.link_visits),
+                metric("🎁", "Подарков отправлено", insights.gifts_sent),
+                metric("🎀", "Подарков получено", insights.gifts_received),
+            )),
+            section("Безопасность", (
+                metric("⚠️", "Жалоб отправлено", complaints),
+                metric("🚨", "Предупреждений", f"{warnings_count}/3"),
+            )),
+        ),
+        footer="Выберите действие ниже.",
     )
     return text, get_profile_keyboard(is_vip)
 
 
 async def send_profile_screen(message: Message, user_id: int):
-    screen = await build_profile_screen(user_id)
-    if screen is None:
+    profile_screen = await build_profile_screen(user_id)
+    if profile_screen is None:
         return None
-    text, keyboard = screen
+    text, keyboard = profile_screen
     return await send_brand_card(message, "profile", text, keyboard)
