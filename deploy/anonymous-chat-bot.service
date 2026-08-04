@@ -1,22 +1,26 @@
 [Unit]
-Description=Anonymous Telegram Chat Bot
+Description=CASPER Anonymous Telegram Bot
 After=network-online.target
 Wants=network-online.target
 
 [Service]
 Type=simple
 User=botuser
+Group=botuser
 WorkingDirectory=/opt/anonymous-chat-bot
+EnvironmentFile=/opt/anonymous-chat-bot/.env
 Environment=PYTHONUNBUFFERED=1
-ExecStart=/opt/anonymous-chat-bot/.venv/bin/python /opt/anonymous-chat-bot/run.py
-Restart=always
+ExecStart=/usr/bin/python3 /opt/anonymous-chat-bot/run.py
+Restart=on-failure
 RestartSec=5
 TimeoutStopSec=30
+KillSignal=SIGINT
 
 # Базовые ограничения безопасности
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=full
+ProtectHome=true
 ReadWritePaths=/opt/anonymous-chat-bot/data /opt/anonymous-chat-bot/logs
 
 [Install]

@@ -14,6 +14,14 @@ from . import callbacks_gifts
 from . import callbacks_broadcast
 from . import callbacks_admin
 from . import advertising
+# Must be registered before payments.py, whose legacy pre-checkout handler accepts all invoices.
+from . import payment_guard
+# Specific successful-payment handlers must precede the generic payment handler.
+from . import duel_creation_payments
+from . import duel_payments
+from . import atomic_question_payments
+from . import atomic_commerce_payments
+from . import premium_payments
 from . import payments
 from . import chat
 

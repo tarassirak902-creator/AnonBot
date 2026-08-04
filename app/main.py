@@ -10,6 +10,7 @@ from app import database as db
 from app.core import config
 from app.core.logging_config import setup_logging
 from app.core.middlewares import AntiFloodMiddleware
+from app.core.payment_middleware import PaymentIdempotencyMiddleware
 from app.handlers import router
 from app.services.background import create_background_tasks, stop_background_tasks
 
@@ -35,6 +36,8 @@ async def main() -> None:
     await bot.set_chat_menu_button(menu_button=MenuButtonCommands())
 
     dispatcher = Dispatcher()
+    # Payment idempotency must wrap payment handlers before any side effects.
+    dispatcher.message.outer_middleware(PaymentIdempotencyMiddleware())
     # Middleware is attached separately to messages and callback queries.
     # This lets restricted users press the service button with block details.
     dispatcher.message.outer_middleware(AntiFloodMiddleware(slow_mode_delay=0.25))
