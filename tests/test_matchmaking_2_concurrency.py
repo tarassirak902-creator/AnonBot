@@ -64,4 +64,11 @@ def test_admin_health_exposes_safe_matchmaking_recovery() -> None:
 
 def test_recovery_adapter_is_installed_before_handlers() -> None:
     source = Path("app/handlers/__init__.py").read_text(encoding="utf-8")
-    assert source.index("install_matchmaking_adapter()") < source.index("from . import questions")
+    assert source.index("install_matchmaking_v2()") < source.index("from . import questions")
+
+
+def test_matchmaking_service_serializes_recovery_and_matching() -> None:
+    source = Path("app/services/matchmaking_service.py").read_text(encoding="utf-8")
+    assert "_MATCH_LOCK = asyncio.Lock()" in source
+    assert "async with _MATCH_LOCK:" in source
+    assert '"oldest_wait_seconds"' in source
