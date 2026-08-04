@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from html import escape
-
 from aiogram import F
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
@@ -42,7 +40,7 @@ async def show_inline_question_entry(message: Message, token: str, owner) -> Non
             intro=f"Получатель: {display_name}",
             footer="Ваше имя останется скрытым.",
         ),
-        _question_entry_inline(token, escape(display_name)),
+        _question_entry_inline(token, display_name),
     )
 
 
