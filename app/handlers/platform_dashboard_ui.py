@@ -17,12 +17,13 @@ def _admin_ops_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
         [
             InlineKeyboardButton(text="🔄 Обновить", callback_data="admin_ops_refresh"),
-            InlineKeyboardButton(text="👥 Пользователи", callback_data="admin_user_search"),
+            InlineKeyboardButton(text="📈 Удержание", callback_data="admin_retention_dashboard"),
         ],
         [
-            InlineKeyboardButton(text="🚨 Жалобы", callback_data="admin_complaints"),
-            InlineKeyboardButton(text="📨 Рассылка", callback_data="admin_broadcast"),
+            InlineKeyboardButton(text="👥 Пользователи", callback_data="admin_user_search"),
+            InlineKeyboardButton(text="🚨 Жалобы", callback_data="admin_complaints_dashboard"),
         ],
+        [InlineKeyboardButton(text="📨 Рассылка", callback_data="admin_broadcast")],
         [InlineKeyboardButton(text="⬅️ Админка", callback_data="admin_back_to_panel")],
     ])
 
@@ -53,7 +54,7 @@ async def _admin_ops_text() -> str:
                 "При росте негативных оценок проверьте жалобы и очередь.",
             )),
         ),
-        footer="Данные собираются безопасно даже при разных версиях старой БД.",
+        footer="Удержание и конверсия в диалог доступны отдельной кнопкой.",
     )
 
 
