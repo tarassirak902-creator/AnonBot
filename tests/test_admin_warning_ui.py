@@ -3,14 +3,14 @@ from app.handlers.admin_warning_ui import warning_admin_result, warning_notice
 
 def test_warning_notice_uses_consistent_screen_copy() -> None:
     text = warning_notice(2, auto_banned=False)
-    assert "⚠️ <b>Предупреждение</b>" in text
+    assert "<b>⚠️ Предупреждение</b>" in text
     assert "2 из 3" in text
     assert "Повторные нарушения" in text
 
 
 def test_third_warning_mentions_permanent_block() -> None:
     text = warning_notice(3, auto_banned=True)
-    assert "⛔ <b>Аккаунт заблокирован</b>" in text
+    assert "<b>⛔ Аккаунт заблокирован</b>" in text
     assert "третье предупреждение" in text.lower()
     assert "бессрочно" in text.lower()
 
