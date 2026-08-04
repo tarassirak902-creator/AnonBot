@@ -7,7 +7,7 @@ def test_search_copy_uses_visible_states() -> None:
     captions = search_ui.shared.SEARCH_CAPTIONS
     assert "<b>🚀 Поиск запущен</b>" in captions["start"]
     assert "<b>⏳ Всё ещё ищем</b>" in captions["waiting"]
-    assert "<b>💬 Собеседник найден</b>" in captions["found"]
+    assert "<b>✨ Собеседник найден</b>" in captions["found"]
     assert "<b>⌛ Поиск завершён</b>" in captions["timeout"]
     assert "━━━━━━━━" not in "\n".join(captions.values())
 
