@@ -12,8 +12,7 @@ def test_full_menu_handler_module_is_present() -> None:
         "async def broadcast_start",
         "async def banned_words",
         "async def gifts_management",
-        "async def admin_settings",
-        "async def admin_logs",
+        "async def admin_withdraw_requests",
     )
     for handler in required_handlers:
         assert handler in MENUS
