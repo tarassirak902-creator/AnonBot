@@ -6,57 +6,67 @@ from .shared import router
 from . import advertising, admin_overview_ui, commands, menus, questions
 
 
-@router.message(F.text == "🚀 Начать общение")
-async def redesigned_search(message: Message, state: FSMContext) -> None:
+@router.message(F.text.in_({"💬 Чат", "🚀 Начать общение", "💬 Найти собеседника"}))
+async def route_search(message: Message, state: FSMContext) -> None:
     await menus.search_start(message, state)
 
 
-@router.message(F.text == "❓ Анонимные вопросы")
-async def redesigned_questions(message: Message, state: FSMContext) -> None:
+@router.message(F.text.in_({"❓ Вопросы", "❓ Анонимные вопросы"}))
+async def route_questions(message: Message, state: FSMContext) -> None:
     await state.clear()
     await questions._send_questions_home(message, state)
 
 
-@router.message(F.text == "🎮 Игры")
-async def redesigned_games(message: Message, state: FSMContext) -> None:
+@router.message(F.text.in_({"🎮 Игры", "🎮 Мини-игры", "Мини игры"}))
+async def route_games(message: Message, state: FSMContext) -> None:
     await menus.solo_games_start_menu(message, state)
 
 
-@router.message(F.text == "👤 Профиль")
-async def redesigned_profile(message: Message, state: FSMContext) -> None:
+@router.message(F.text.in_({"👤 Профиль", "👤 Моя анкета", "⚙️ Профиль"}))
+async def route_profile(message: Message, state: FSMContext) -> None:
     await menus.profile(message, state)
 
 
-@router.message(F.text == "🎁 Пригласить друга")
-async def redesigned_invite(message: Message, state: FSMContext) -> None:
+@router.message(F.text.in_({"🎁 Друзья", "🎁 Пригласить друга", "👥 Пригласить друга", "🔗 Пригласить друга"}))
+async def route_invite(message: Message, state: FSMContext) -> None:
     await commands.invite_friend(message, state)
 
 
-@router.message(F.text == "📣 Разместить рекламу")
-async def redesigned_advertising(message: Message, state: FSMContext) -> None:
+@router.message(F.text.in_({"📣 Реклама", "📣 Разместить рекламу", "📣 Купить рекламу", "📢 Купить рекламу", "📢 Реклама в CASPER"}))
+async def route_advertising(message: Message, state: FSMContext) -> None:
     await advertising.advertising_menu(message, state)
 
 
-@router.message(F.text == "⚙️ Панель управления")
-async def redesigned_admin_panel(message: Message, state: FSMContext) -> None:
+@router.message(F.text.in_({"⚙️ Админка", "⚙️ Панель управления"}))
+async def route_admin_panel(message: Message, state: FSMContext) -> None:
     await admin_overview_ui.admin_panel_entry(message, state)
 
 
-@router.message(F.text == "🎮 Дуэль")
-async def redesigned_duel(message: Message, state: FSMContext) -> None:
+@router.message(F.text.in_({"➡️ Новый", "➡️ Новый собеседник", "➡️ Следующий собеседник"}))
+async def route_next_partner(message: Message, state: FSMContext) -> None:
+    await menus.next_partner(message, state)
+
+
+@router.message(F.text.in_({"⏹ Завершить", "❌ Завершить диалог"}))
+async def route_end_dialog(message: Message, state: FSMContext) -> None:
+    await menus.end_dialog(message, state)
+
+
+@router.message(F.text.in_({"🎮 Дуэль", "⚔️ Играть с собеседником"}))
+async def route_duel(message: Message, state: FSMContext) -> None:
     await menus.duel_games_start_menu(message, state)
 
 
-@router.message(F.text == "🎁 Подарок")
-async def redesigned_chat_gift(message: Message) -> None:
+@router.message(F.text.in_({"🎁 Подарок", "🎁 Подарить подарок"}))
+async def route_chat_gift(message: Message) -> None:
     await menus.show_gifts(message)
 
 
-@router.message(F.text == "👤 Кто это?")
-async def redesigned_reveal(message: Message) -> None:
+@router.message(F.text.in_({"👤 Раскрыть", "👤 Кто это?", "⭐ Кто собеседник"}))
+async def route_reveal(message: Message) -> None:
     await menus.reveal_partner(message)
 
 
-@router.message(F.text == "🚨 Жалоба")
-async def redesigned_complaint(message: Message) -> None:
+@router.message(F.text.in_({"🚨 Жалоба", "⚠️ Пожаловаться"}))
+async def route_complaint(message: Message) -> None:
     await menus.complaint_menu(message)

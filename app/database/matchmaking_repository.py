@@ -8,10 +8,9 @@ from .repository import DB_PATH
 async def try_match_user(user_id: int) -> int | None:
     """Atomically queue a user or create one reciprocal chat pair.
 
-    The transaction excludes blocked/missing users, removes inconsistent rows for
-    the requester, and never selects a candidate referenced by any active chat.
-    This prevents one user from being matched into two conversations even when a
-    previous process left a one-sided row behind.
+    A single IMMEDIATE transaction serializes concurrent joins. Stale queue rows
+    are removed before selection, repeated joins preserve FIFO position, and a
+    candidate is selected only when neither side participates in an active chat.
     """
     async with aiosqlite.connect(DB_PATH, timeout=10) as conn:
         await conn.execute("PRAGMA busy_timeout=10000")
@@ -28,8 +27,21 @@ async def try_match_user(user_id: int) -> int | None:
                 await conn.commit()
                 return None
 
-            # Do not disturb a valid existing dialog. Remove only an inconsistent
-            # one-sided row for the requester before attempting a new match.
+            # Remove queue rows that can never be matched. Doing this inside the
+            # same transaction prevents concurrent workers from seeing stale users.
+            await conn.execute(
+                """DELETE FROM queues
+                   WHERE user_id NOT IN (SELECT user_id FROM users)
+                      OR user_id IN (
+                          SELECT user_id FROM users WHERE COALESCE(blocked,0)!=0
+                      )
+                      OR user_id IN (
+                          SELECT user_id FROM active_chats
+                          UNION
+                          SELECT partner_id FROM active_chats
+                      )"""
+            )
+
             current = await (
                 await conn.execute(
                     """SELECT a.partner_id
@@ -45,11 +57,11 @@ async def try_match_user(user_id: int) -> int | None:
                 await conn.commit()
                 return None
 
+            # Clear only inconsistent one-sided references involving requester.
             await conn.execute(
                 "DELETE FROM active_chats WHERE user_id=? OR partner_id=?",
                 (user_id, user_id),
             )
-            await conn.execute("DELETE FROM queues WHERE user_id=?", (user_id,))
 
             candidate = await (
                 await conn.execute(
@@ -69,9 +81,11 @@ async def try_match_user(user_id: int) -> int | None:
             ).fetchone()
 
             if candidate is None:
+                # INSERT OR IGNORE keeps the original created_at, so repeated taps
+                # do not push a waiting user to the end of the queue.
                 await conn.execute(
-                    "INSERT INTO queues(user_id,created_at) VALUES (?,CURRENT_TIMESTAMP) "
-                    "ON CONFLICT(user_id) DO UPDATE SET created_at=CURRENT_TIMESTAMP",
+                    "INSERT OR IGNORE INTO queues(user_id,created_at) "
+                    "VALUES (?,CURRENT_TIMESTAMP)",
                     (user_id,),
                 )
                 await conn.commit()
