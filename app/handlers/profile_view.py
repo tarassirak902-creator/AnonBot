@@ -16,7 +16,7 @@ def get_profile_keyboard(is_vip: bool) -> InlineKeyboardMarkup:
         [InlineKeyboardButton(text="🎁 Забрать бонус", callback_data="profile_daily_reward")],
         [InlineKeyboardButton(text="🏆 Мои достижения", callback_data="profile_achievements")],
         [
-            InlineKeyboardButton(text="⭐ Баланс", callback_data="profile_withdraw"),
+            InlineKeyboardButton(text="⭐ Баланс и вывод", callback_data="profile_withdraw"),
             InlineKeyboardButton(text=vip_btn_text, callback_data="buy_vip_sub"),
         ],
         [
