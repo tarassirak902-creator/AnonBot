@@ -58,6 +58,7 @@ install_admin_result_ui()
 from . import question_subscription_gate
 from . import advertising
 from . import social_features_ui
+from . import community_ui
 # Register canonical and legacy reply-button aliases only after their target modules exist.
 from . import visible_button_aliases
 # Must be registered before payments.py, whose legacy pre-checkout handler accepts all invoices.
