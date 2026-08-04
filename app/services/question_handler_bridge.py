@@ -39,7 +39,7 @@ class QuestionStartTargetMapping(MutableMapping[int, tuple[str, int, str]]):
             raise KeyError(user_id)
 
     def __iter__(self) -> Iterator[int]:
-        return iter(())
+        return iter(self._store.keys_snapshot())
 
     def __len__(self) -> int:
         return len(self._store)
@@ -55,12 +55,7 @@ class QuestionStartTargetMapping(MutableMapping[int, tuple[str, int, str]]):
 
 @dataclass(frozen=True, slots=True)
 class QuestionModuleRuntime:
-    """Installed question-module dependencies.
-
-    Keeping the runtime object on the module makes initialization explicit,
-    idempotent and observable in tests. Re-imports no longer replace the
-    short-lived context store or reset its entries.
-    """
+    """Installed question-module dependencies."""
 
     start_targets: QuestionStartTargetMapping
     navigation: QuestionNavigation
