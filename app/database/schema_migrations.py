@@ -8,7 +8,7 @@ import aiosqlite
 from . import repository as legacy_repository
 
 DB_PATH = legacy_repository.DB_PATH
-CURRENT_SCHEMA_VERSION = 1
+CURRENT_SCHEMA_VERSION = 2
 
 
 @dataclass(frozen=True)
@@ -65,6 +65,56 @@ async def _snapshot_matchmaking(path: str) -> MatchmakingSnapshot:
     return MatchmakingSnapshot(tuple(queues), tuple(active_chats))
 
 
+async def _create_reliability_indexes(conn: aiosqlite.Connection) -> None:
+    statements = {
+        "anonymous_questions": (
+            "CREATE INDEX IF NOT EXISTS idx_questions_sender_created "
+            "ON anonymous_questions(sender_id,created_at DESC)",
+            "CREATE INDEX IF NOT EXISTS idx_questions_receiver_status_created "
+            "ON anonymous_questions(receiver_id,status,created_at DESC)",
+        ),
+        "question_link_visits": (
+            "CREATE INDEX IF NOT EXISTS idx_question_visits_visitor "
+            "ON question_link_visits(visitor_id,created_at DESC)",
+        ),
+        "purchases": (
+            "CREATE INDEX IF NOT EXISTS idx_purchases_buyer_type_time "
+            "ON purchases(buyer_id,type,timestamp DESC)",
+            "CREATE INDEX IF NOT EXISTS idx_purchases_receiver_type_time "
+            "ON purchases(receiver_id,type,timestamp DESC)",
+        ),
+        "payment_ledger": (
+            "CREATE INDEX IF NOT EXISTS idx_payment_ledger_status_started "
+            "ON payment_ledger(status,started_at)",
+        ),
+        "premium_deliveries": (
+            "CREATE INDEX IF NOT EXISTS idx_premium_delivery_status_created "
+            "ON premium_deliveries(status,created_at)",
+        ),
+        "game_duels": (
+            "CREATE INDEX IF NOT EXISTS idx_game_duels_status_created "
+            "ON game_duels(status,created_at)",
+        ),
+    }
+    for table, table_statements in statements.items():
+        if not await _table_exists(conn, table):
+            continue
+        columns = await _table_columns(conn, table)
+        for statement in table_statements:
+            # Some additive columns are created lazily by payment modules. Skip an
+            # index until every referenced column exists rather than failing startup.
+            referenced = {
+                token.strip("(),")
+                for token in statement.replace(" DESC", "").split()
+                if token.strip("(),") in {
+                    "sender_id", "receiver_id", "visitor_id", "created_at", "status",
+                    "buyer_id", "type", "timestamp", "started_at"
+                }
+            }
+            if referenced.issubset(columns):
+                await conn.execute(statement)
+
+
 async def _restore_matchmaking(path: str, snapshot: MatchmakingSnapshot) -> None:
     async with aiosqlite.connect(path, timeout=10) as conn:
         await conn.execute("PRAGMA busy_timeout=10000")
@@ -83,6 +133,7 @@ async def _restore_matchmaking(path: str, snapshot: MatchmakingSnapshot) -> None
             "CREATE TABLE IF NOT EXISTS schema_migrations ("
             "version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL)"
         )
+        await _create_reliability_indexes(conn)
         await conn.execute(
             "INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES (?,?)",
             (CURRENT_SCHEMA_VERSION, datetime.now().isoformat()),
@@ -91,13 +142,7 @@ async def _restore_matchmaking(path: str, snapshot: MatchmakingSnapshot) -> None
 
 
 async def init_db() -> None:
-    """Initialize the database without losing legacy matchmaking state.
-
-    The original initializer rebuilds temporary tables when their column count or
-    legacy shape differs. This facade snapshots compatible rows first, invokes the
-    legacy schema creation, restores the rows, and records an explicit migration
-    version. New migrations should be added here rather than by column counts.
-    """
+    """Initialize the database without losing legacy matchmaking state."""
     snapshot = await _snapshot_matchmaking(DB_PATH)
     await legacy_repository.init_db()
     await _restore_matchmaking(DB_PATH, snapshot)
