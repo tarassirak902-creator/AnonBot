@@ -20,13 +20,13 @@ def normalize_admin_result(prefix: str | None) -> str | None:
     if "разблок" in lowered or "ограничение снято" in lowered:
         return "✅ Ограничение снято"
 
-    if "заблок" in lowered or "бан" in lowered:
-        return "✅ Бессрочная блокировка включена"
-
     if "предупрежден" in lowered:
         if "автомат" in lowered or "треть" in lowered:
             return "⛔ Третье предупреждение: аккаунт заблокирован"
         return value.replace("Выдано ", "").replace("!", "")
+
+    if "заблок" in lowered or "бан" in lowered:
+        return "✅ Бессрочная блокировка включена"
 
     if "действие выполнено" in lowered:
         return "✅ Изменения сохранены"
