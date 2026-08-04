@@ -52,6 +52,10 @@ def get_profile_keyboard(is_vip: bool) -> InlineKeyboardMarkup:
     vip_btn_text = "👑 Управление VIP" if is_vip else "👑 Подключить VIP"
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="🎁 Забрать бонус", callback_data="profile_daily_reward")],
+        [
+            InlineKeyboardButton(text="🎯 Интересы", callback_data="community_preferences"),
+            InlineKeyboardButton(text="🤝 Контакты", callback_data="community_connections"),
+        ],
         [InlineKeyboardButton(text="🏆 Мои достижения", callback_data="profile_achievements")],
         [
             InlineKeyboardButton(text="⭐ Баланс и вывод", callback_data="profile_withdraw"),
@@ -86,6 +90,15 @@ async def build_profile_screen(user_id: int) -> tuple[str, InlineKeyboardMarkup]
     unlocked, total = achievement_progress(achievements)
     reputation = await _safe_reputation(user_id)
 
+    completed_chats = _safe_int(getattr(insights, "completed_chats", 0))
+    days_in_bot = _safe_int(getattr(insights, "days_in_bot", 0))
+    gifts_received = _safe_int(getattr(insights, "gifts_received", 0))
+    referrals_total = _safe_int(getattr(insights, "referrals_total", 0))
+    questions_received = _safe_int(getattr(insights, "questions_received", 0))
+    questions_sent = _safe_int(getattr(insights, "questions_sent", 0))
+    answers_received = _safe_int(getattr(insights, "answers_received", 0))
+    questions_answered = _safe_int(getattr(insights, "questions_answered", 0))
+
     identity = first_name
     if username:
         identity += f" · @{username}"
@@ -106,23 +119,23 @@ async def build_profile_screen(user_id: int) -> tuple[str, InlineKeyboardMarkup]
                 metric("🗳", "Оценок", reputation["total"]),
             )),
             section("Активность", (
-                metric("💬", "Диалогов", insights.completed_chats),
-                metric("📅", "Дней с CASPER", insights.days_in_bot),
-                metric("🎁", "Подарков", insights.gifts_received),
-                metric("👥", "Друзей", insights.referrals_total),
+                metric("💬", "Диалогов", completed_chats),
+                metric("📅", "Дней с CASPER", days_in_bot),
+                metric("🎁", "Подарков", gifts_received),
+                metric("👥", "Друзей", referrals_total),
             )),
             section("Вопросы", (
-                metric("📥", "Получено", insights.questions_received),
-                metric("✉️", "Отправлено", insights.questions_sent),
-                metric("✅", "Ответов", insights.answers_received),
-                metric("💬", "Ответил", insights.questions_answered),
+                metric("📥", "Получено", questions_received),
+                metric("✉️", "Отправлено", questions_sent),
+                metric("✅", "Ответов", answers_received),
+                metric("💬", "Ответил", questions_answered),
             )),
             section("Безопасность", (
                 metric("⚠️", "Жалоб", complaints),
                 metric("🚨", "Предупреждений", f"{warnings_count}/3"),
             )),
         ),
-        footer="Ежедневный бонус повышает XP и серию входов.",
+        footer="Настрой интересы и язык — поиск станет точнее.",
     )
     return text, get_profile_keyboard(is_vip)
 
