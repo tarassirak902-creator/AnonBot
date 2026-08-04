@@ -28,7 +28,6 @@ install_admin_card_ui()
 
 from . import commands
 from . import service_menu
-from . import commercial_navigation_ui
 from . import forms
 from . import admin_commands
 from . import casper_game
@@ -36,6 +35,8 @@ from . import casper_game
 from . import profile_action_entry
 from . import events_audit_ui
 from . import commercial_profile_aliases
+from . import commercial_navigation_ui
+from . import commercial_daily_hub
 # Unified admin and user entry screens must be registered before legacy handlers.
 from . import admin_overview_ui
 from . import platform_dashboard_ui
