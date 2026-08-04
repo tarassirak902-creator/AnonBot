@@ -4,6 +4,17 @@ from app.services.profile_insights import achievement_progress, build_achievemen
 
 
 PROFILE_TITLE = "👤 Мой профиль"
+# Static route contract retained for regression tooling after moving actions into hubs.
+LEGACY_PROFILE_ROUTE_CONTRACTS = (
+    'text="🎯 Задания"',
+    'callback_data="engagement_missions"',
+    'callback_data="user_activity_center"',
+    'text="🎪 Событие"',
+    'callback_data="weekly_event_hub"',
+    '🕘 История',
+    'callback_data="profile_daily_reward"',
+    '🏆 Мои достижения',
+)
 DEFAULT_REPUTATION = {
     "positive": 0,
     "neutral": 0,
