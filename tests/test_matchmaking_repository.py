@@ -58,6 +58,50 @@ async def test_concurrent_matchmaking_creates_disjoint_pairs(tmp_path, monkeypat
 
 
 @pytest.mark.asyncio
+async def test_three_concurrent_users_create_one_pair_and_one_waiter(tmp_path, monkeypatch) -> None:
+    db_path = str(tmp_path / "three-users.db")
+    await _create_schema(db_path)
+    monkeypatch.setattr(matchmaking_repository, "DB_PATH", db_path)
+
+    await asyncio.gather(
+        *(matchmaking_repository.try_match_user(user_id) for user_id in (1, 2, 3))
+    )
+
+    async with aiosqlite.connect(db_path) as conn:
+        rows = await (
+            await conn.execute("SELECT user_id,partner_id FROM active_chats")
+        ).fetchall()
+        queued = await (
+            await conn.execute("SELECT user_id FROM queues")
+        ).fetchall()
+
+    assert len(rows) == 2
+    mapping = dict(rows)
+    assert all(mapping.get(partner) == user for user, partner in rows)
+    assert len(queued) == 1
+    assert queued[0][0] not in mapping
+
+
+@pytest.mark.asyncio
+async def test_repeated_join_preserves_fifo_position(tmp_path, monkeypatch) -> None:
+    db_path = str(tmp_path / "fifo.db")
+    await _create_schema(db_path)
+    monkeypatch.setattr(matchmaking_repository, "DB_PATH", db_path)
+
+    assert await matchmaking_repository.try_match_user(1) is None
+    async with aiosqlite.connect(db_path) as conn:
+        await conn.execute(
+            "UPDATE queues SET created_at='2020-01-01 00:00:00' WHERE user_id=1"
+        )
+        await conn.execute(
+            "INSERT INTO queues(user_id,created_at) VALUES (2,'2021-01-01 00:00:00')"
+        )
+        await conn.commit()
+
+    assert await matchmaking_repository.try_match_user(1) == 2
+
+
+@pytest.mark.asyncio
 async def test_candidate_referenced_by_orphan_chat_is_not_selected(tmp_path, monkeypatch) -> None:
     db_path = str(tmp_path / "orphan.db")
     await _create_schema(db_path)
