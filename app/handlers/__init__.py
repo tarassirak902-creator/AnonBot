@@ -6,6 +6,7 @@ from .question_entry_ui import install_question_entry_ui
 from .question_copy_ui import install_question_copy_ui
 from .question_browser_ui import install_question_browser_ui
 from .question_delivery_ui import install_question_delivery_ui
+from .question_details_ui import install_question_details_ui
 from .admin_card_ui import install_admin_card_ui
 
 # Install UI/service boundaries before callback modules import shared symbols.
@@ -14,6 +15,7 @@ install_question_entry_ui()
 install_question_copy_ui()
 install_question_browser_ui()
 install_question_delivery_ui()
+install_question_details_ui()
 install_admin_card_ui()
 
 from . import commands
