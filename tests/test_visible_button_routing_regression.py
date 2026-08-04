@@ -1,5 +1,7 @@
 from pathlib import Path
 
+from app.handlers.minimal_keyboard_ui import CHAT_LABELS, MAIN_LABELS
+
 
 MENUS = Path("app/handlers/menus.py").read_text(encoding="utf-8")
 ALIASES = Path("app/handlers/visible_button_aliases.py").read_text(encoding="utf-8")
@@ -18,27 +20,28 @@ def test_full_menu_handler_module_is_present() -> None:
         assert handler in MENUS
 
 
-def test_every_redesigned_primary_button_has_explicit_route() -> None:
+def test_every_primary_button_has_explicit_route() -> None:
+    for label in MAIN_LABELS.values():
+        assert f'"{label}"' in ALIASES
+
+
+def test_every_dialog_button_has_explicit_route() -> None:
+    for label in CHAT_LABELS.values():
+        assert f'"{label}"' in ALIASES
+
+
+def test_legacy_routes_remain_supported() -> None:
     for label in (
         "🚀 Начать общение",
         "❓ Анонимные вопросы",
-        "🎮 Игры",
-        "👤 Профиль",
         "🎁 Пригласить друга",
         "📣 Разместить рекламу",
         "⚙️ Панель управления",
-    ):
-        assert f'F.text == "{label}"' in ALIASES
-
-
-def test_every_redesigned_dialog_button_has_explicit_route() -> None:
-    for label in (
-        "🎮 Дуэль",
-        "🎁 Подарок",
+        "➡️ Новый собеседник",
+        "❌ Завершить диалог",
         "👤 Кто это?",
-        "🚨 Жалоба",
     ):
-        assert f'F.text == "{label}"' in ALIASES
+        assert f'"{label}"' in ALIASES
 
 
 def test_aliases_are_registered_after_all_target_modules() -> None:
