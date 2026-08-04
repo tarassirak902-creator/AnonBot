@@ -8,6 +8,7 @@ from aiogram.types import BotCommand, MenuButtonCommands
 
 from app import database as db
 from app.core import config
+from app.core.deep_link_middleware import QuestionDeepLinkMiddleware
 from app.core.logging_config import setup_logging
 from app.core.middlewares import AntiFloodMiddleware
 from app.core.payment_middleware import PaymentIdempotencyMiddleware
@@ -25,7 +26,6 @@ async def main() -> None:
 
     bot = Bot(token=config.BOT_TOKEN)
 
-    # Стандартная синяя кнопка «Меню» Telegram и список быстрых команд.
     await bot.set_my_commands([
         BotCommand(command="start", description="🔄 Перезапустить бота"),
         BotCommand(command="support", description="🛟 Техническая поддержка"),
@@ -36,10 +36,8 @@ async def main() -> None:
     await bot.set_chat_menu_button(menu_button=MenuButtonCommands())
 
     dispatcher = Dispatcher()
-    # Payment idempotency must wrap payment handlers before any side effects.
+    dispatcher.message.outer_middleware(QuestionDeepLinkMiddleware())
     dispatcher.message.outer_middleware(PaymentIdempotencyMiddleware())
-    # Middleware is attached separately to messages and callback queries.
-    # This lets restricted users press the service button with block details.
     dispatcher.message.outer_middleware(AntiFloodMiddleware(slow_mode_delay=0.25))
     dispatcher.callback_query.outer_middleware(AntiFloodMiddleware(slow_mode_delay=0.25))
     dispatcher.include_router(router)
@@ -48,8 +46,6 @@ async def main() -> None:
 
     logger.info("Запуск Telegram-бота")
     try:
-        # Never discard queued updates during a normal deploy/restart. In
-        # particular, successful-payment updates must survive short downtime.
         await bot.delete_webhook(drop_pending_updates=False)
         await dispatcher.start_polling(bot)
     finally:
