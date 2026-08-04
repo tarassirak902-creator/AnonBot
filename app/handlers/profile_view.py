@@ -8,6 +8,44 @@ from app.services.profile_insights import (
 
 
 PROFILE_TITLE = "👤 Мой профиль"
+DEFAULT_REPUTATION = {
+    "positive": 0,
+    "neutral": 0,
+    "negative": 0,
+    "total": 0,
+    "score": 0.0,
+    "xp": 0,
+    "level": 1,
+}
+
+
+def _safe_int(value, default: int = 0) -> int:
+    try:
+        return int(value) if value is not None else default
+    except (TypeError, ValueError):
+        return default
+
+
+async def _safe_reputation(user_id: int) -> dict:
+    """Do not make the whole profile depend on a freshly migrated table."""
+    try:
+        reputation = await db.get_reputation(user_id)
+    except Exception:
+        return dict(DEFAULT_REPUTATION)
+    result = dict(DEFAULT_REPUTATION)
+    if isinstance(reputation, dict):
+        result.update(reputation)
+    result["positive"] = _safe_int(result.get("positive"))
+    result["neutral"] = _safe_int(result.get("neutral"))
+    result["negative"] = _safe_int(result.get("negative"))
+    result["total"] = _safe_int(result.get("total"))
+    result["xp"] = _safe_int(result.get("xp"))
+    result["level"] = max(1, _safe_int(result.get("level"), 1))
+    try:
+        result["score"] = float(result.get("score", 0.0) or 0.0)
+    except (TypeError, ValueError):
+        result["score"] = 0.0
+    return result
 
 
 def get_profile_keyboard(is_vip: bool) -> InlineKeyboardMarkup:
@@ -39,21 +77,21 @@ async def build_profile_screen(user_id: int) -> tuple[str, InlineKeyboardMarkup]
     username = user[1] if len(user) > 1 and user[1] else None
     first_name = user[2] if len(user) > 2 and user[2] else "Пользователь"
     joined_str = user[4] if len(user) > 4 and user[4] else None
-    warnings_count = int(user[6] if len(user) > 6 else 0)
-    complaints = int(user[9] if len(user) > 9 else 0)
-    stars_balance = await db.get_user_balance(user_id)
-    is_vip = await db.is_user_vip(user_id)
+    warnings_count = _safe_int(user[6] if len(user) > 6 else 0)
+    complaints = _safe_int(user[9] if len(user) > 9 else 0)
+    stars_balance = _safe_int(await db.get_user_balance(user_id))
+    is_vip = bool(await db.is_user_vip(user_id))
     insights = await load_profile_insights(user_id, joined_str)
     achievements = build_achievements(insights, is_vip=is_vip, stars_balance=stars_balance)
     unlocked, total = achievement_progress(achievements)
-    reputation = await db.get_reputation(user_id)
+    reputation = await _safe_reputation(user_id)
 
     identity = first_name
     if username:
         identity += f" · @{username}"
 
     status_line = "👑 VIP" if is_vip else "🌙 Обычный"
-    rating_text = f"{reputation['score']:+.1f}%" if reputation['total'] else "нет оценок"
+    rating_text = f"{reputation['score']:+.1f}%" if reputation["total"] else "нет оценок"
     text = screen(
         PROFILE_TITLE,
         intro=(
