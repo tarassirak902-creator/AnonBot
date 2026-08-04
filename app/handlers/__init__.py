@@ -33,8 +33,6 @@ from . import dialog_ui
 from .search_ui import install_search_copy
 install_search_copy()
 from . import menus
-# Keep redesigned reply labels compatible with the restored full legacy handler module.
-from . import visible_button_aliases
 from . import profile_achievements
 # Payment/profile entry adapters must be registered before legacy profile callbacks.
 from . import payment_entry_ui
@@ -51,6 +49,8 @@ install_moderation_notices()
 install_admin_result_ui()
 from . import question_subscription_gate
 from . import advertising
+# Register all redesigned reply-button aliases only after their target modules exist.
+from . import visible_button_aliases
 # Must be registered before payments.py, whose legacy pre-checkout handler accepts all invoices.
 from . import payment_guard
 # Specific successful-payment handlers must precede the generic payment handler.
