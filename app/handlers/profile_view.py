@@ -14,7 +14,7 @@ def get_profile_keyboard(is_vip: bool) -> InlineKeyboardMarkup:
     vip_btn_text = "👑 Управление VIP" if is_vip else "👑 Подключить VIP"
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="🎁 Забрать бонус", callback_data="profile_daily_reward")],
-        [InlineKeyboardButton(text="🏆 Достижения", callback_data="profile_achievements")],
+        [InlineKeyboardButton(text="🏆 Мои достижения", callback_data="profile_achievements")],
         [
             InlineKeyboardButton(text="⭐ Баланс", callback_data="profile_withdraw"),
             InlineKeyboardButton(text=vip_btn_text, callback_data="buy_vip_sub"),
