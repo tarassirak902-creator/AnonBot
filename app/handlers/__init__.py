@@ -30,9 +30,11 @@ from . import callbacks_duels
 from . import callbacks_gifts
 from . import callbacks_broadcast
 from . import callbacks_admin
-# Patch shared moderation notices after the legacy module is loaded.
+# Patch presentation-only moderation boundaries after the legacy module is loaded.
 from .moderation_notices_ui import install_moderation_notices
+from .admin_results_ui import install_admin_result_ui
 install_moderation_notices()
+install_admin_result_ui()
 from . import question_subscription_gate
 from . import advertising
 # Must be registered before payments.py, whose legacy pre-checkout handler accepts all invoices.
