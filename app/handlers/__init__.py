@@ -28,6 +28,7 @@ install_admin_card_ui()
 
 from . import commands
 from . import service_menu
+from . import commercial_navigation_ui
 from . import forms
 from . import admin_commands
 from . import casper_game
