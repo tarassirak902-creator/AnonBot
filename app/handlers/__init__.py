@@ -33,6 +33,7 @@ from . import admin_commands
 from . import casper_game
 # Unified admin and user entry screens must be registered before legacy handlers.
 from . import admin_overview_ui
+from . import platform_dashboard_ui
 from . import admin_lists_ui
 from . import admin_confirmation_ui
 from . import admin_warning_ui
