@@ -5,10 +5,10 @@ def test_search_copy_uses_consistent_states() -> None:
     search_ui.install_search_copy()
 
     captions = search_ui.shared.SEARCH_CAPTIONS
-    assert "🔎 <b>Поиск собеседника</b>" in captions["start"]
-    assert "⏳ <b>Поиск продолжается</b>" in captions["waiting"]
-    assert "💬 <b>Собеседник найден</b>" in captions["found"]
-    assert "⌛ <b>Поиск остановлен</b>" in captions["timeout"]
+    assert "<b>🔎 Поиск собеседника</b>" in captions["start"]
+    assert "<b>⏳ Поиск продолжается</b>" in captions["waiting"]
+    assert "<b>💬 Собеседник найден</b>" in captions["found"]
+    assert "<b>⌛ Поиск остановлен</b>" in captions["timeout"]
     assert "━━━━━━━━" not in "\n".join(captions.values())
 
 
