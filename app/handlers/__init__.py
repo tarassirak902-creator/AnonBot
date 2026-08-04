@@ -19,6 +19,9 @@ from . import callbacks_duels
 from . import callbacks_gifts
 from . import callbacks_broadcast
 from . import callbacks_admin
+# Must precede advertising.py's generic subscription-confirmation handler so
+# `/start ask_...` intent is resumed after the subscription gate.
+from . import question_subscription_gate
 from . import advertising
 # Must be registered before payments.py, whose legacy pre-checkout handler accepts all invoices.
 from . import payment_guard
