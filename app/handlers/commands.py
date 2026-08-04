@@ -119,15 +119,19 @@ async def cmd_start(message: Message, command: CommandObject, state: FSMContext)
             await show_question_entry_after_start(message, ask_token, owner)
             return
 
+    first_name = html.escape(message.from_user.first_name or "друг")
     welcome = (
-        "👻 <b>Добро пожаловать в CASPER!</b>\n\n"
-        "Я помогу вам найти нового собеседника, сыграть в мини-игры, "
-        "посмотреть свою анкету и получить подарки.\n\n"
-        "Выберите нужный раздел ниже 💜"
+        f"👻 <b>CASPER приветствует, {first_name}</b>\n\n"
+        "<b>Что хотите сделать?</b>\n\n"
+        "🚀 Найти случайного собеседника\n"
+        "❓ Получать анонимные вопросы\n"
+        "🎮 Играть и зарабатывать ⭐\n"
+        "👤 Управлять профилем и достижениями\n\n"
+        "<i>Главное действие всегда находится на первой кнопке.</i>"
     )
     await send_brand_card(message, "main_menu", welcome, main_menu(is_admin))
 
-@router.message(F.text.in_({"🔗 Пригласить друга", "👥 Пригласить друга"}))
+@router.message(F.text.in_({"🔗 Пригласить друга", "👥 Пригласить друга", "🎁 Пригласить друга"}))
 async def invite_friend(message: Message, state: FSMContext):
     await state.clear()
     user_id = message.from_user.id
@@ -136,19 +140,18 @@ async def invite_friend(message: Message, state: FSMContext):
         user_id,
     )
     text = (
-        "👥 <b>Пригласить друга</b>\n\n"
-        "Отправьте необычное приглашение человеку из своих диалогов Telegram.\n\n"
-        "🎁 Когда приглашённый друг проведёт <b>5 завершённых диалогов</b>, "
-        "вы получите <b>50 виртуальных ⭐</b> на внутренний баланс CASPER GO.\n\n"
+        "🎁 <b>Пригласите друга — получите награду</b>\n\n"
+        "Друг должен провести <b>5 завершённых диалогов</b>. После этого вы получите "
+        "<b>50 виртуальных ⭐</b> на внутренний баланс CASPER GO.\n\n"
         f"👤 Приглашено: <b>{stats['total']}</b>\n"
         f"✅ Активных друзей: <b>{stats['active']}</b>\n"
         f"⭐ Получено наград: <b>{stats['reward_stars']}</b>\n\n"
-        "Нажмите кнопку ниже и выберите, кому отправить приглашение."
+        "Нажмите кнопку ниже и выберите контакт в Telegram."
     )
     kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="📨 Пригласить друга", url=share_url)],
-        [InlineKeyboardButton(text="📊 Моя статистика приглашений", callback_data="referral_stats")],
-        [InlineKeyboardButton(text="↩️ Назад в главное меню", callback_data="nav_main_menu")],
+        [InlineKeyboardButton(text="📨 Отправить приглашение", url=share_url)],
+        [InlineKeyboardButton(text="📊 Статистика", callback_data="referral_stats")],
+        [InlineKeyboardButton(text="🏠 Главное меню", callback_data="nav_main_menu")],
     ])
     await send_brand_card(message, "invite", text, kb)
 
@@ -178,7 +181,12 @@ async def back_to_main(message: Message, state: FSMContext):
             pass
     else:
         is_admin = user_id in ADMIN_IDS
-        await send_brand_card(message, "main_menu", "👻 <b>Главное меню CASPER</b>\n\nВыберите нужный раздел ниже.", main_menu(is_admin))
+        await send_brand_card(
+            message,
+            "main_menu",
+            "👻 <b>CASPER</b>\n\nВыберите следующее действие.",
+            main_menu(is_admin),
+        )
 
 
 
