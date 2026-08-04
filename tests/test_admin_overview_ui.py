@@ -22,17 +22,19 @@ def _stats() -> dict:
     }
 
 
-def test_admin_home_uses_canonical_copy() -> None:
+def test_admin_home_uses_visible_panel_copy() -> None:
     text = admin_home_text()
     assert "Панель управления" in text
     assert "Выберите раздел" in text
+    assert "Пользователи и статистика" in text
 
 
 def test_admin_statistics_is_sectioned_and_compact() -> None:
     text = admin_statistics_text(_stats())
+    assert "Состояние CASPER" in text
     assert "Пользователи" in text
-    assert "Общение" in text
-    assert "Активность" in text
+    assert "Монетизация и безопасность" in text
+    assert "&lt;b&gt;" not in text
     assert "━━━━━━━━" not in text
 
 
