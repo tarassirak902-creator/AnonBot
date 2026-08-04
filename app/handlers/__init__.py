@@ -15,6 +15,8 @@ from . import service_menu
 from . import forms
 from . import admin_commands
 from . import casper_game
+# Unified admin screens must be registered before legacy text/callback handlers.
+from . import admin_overview_ui
 from . import menus
 from . import profile_achievements
 # Payment/profile entry adapters must be registered before legacy profile callbacks.
