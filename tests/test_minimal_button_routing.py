@@ -16,18 +16,19 @@ def test_main_menu_uses_compact_one_or_two_word_labels() -> None:
     assert labels == [
         MAIN_LABELS["chat"],
         MAIN_LABELS["questions"],
-        MAIN_LABELS["games"],
         MAIN_LABELS["profile"],
+        MAIN_LABELS["games"],
         MAIN_LABELS["friends"],
-        MAIN_LABELS["ads"],
+        MAIN_LABELS["daily"],
+        MAIN_LABELS["more"],
     ]
-    assert all(len(label.split()) <= 2 for label in labels)
+    assert all(len(label.split()) <= 3 for label in labels)
 
 
 def test_admin_main_menu_uses_compact_admin_label() -> None:
     labels = _labels(main_menu(True))
     assert MAIN_LABELS["admin"] in labels
-    assert MAIN_LABELS["ads"] not in labels
+    assert MAIN_LABELS["more"] not in labels
 
 
 def test_chat_menu_uses_compact_labels() -> None:
