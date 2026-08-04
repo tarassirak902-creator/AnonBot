@@ -13,6 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
+      PYTHONPATH: "."
       BOT_TOKEN: "123456:TEST_TOKEN_FOR_IMPORT_ONLY"
       ADMIN_IDS: "123456789"
       LOG_CHANNEL_ID: "-1001234567890"
@@ -41,4 +42,4 @@ jobs:
         run: python -c "import app.main"
 
       - name: Run tests
-        run: pytest -q
+        run: python -m pytest -q
