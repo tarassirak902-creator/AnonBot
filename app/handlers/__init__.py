@@ -1,5 +1,10 @@
 # Import order matters: specific FSM/callback handlers must be registered before generic chat handlers.
 from .shared import router, reset_inactivity_timer, cancel_search_timer
+from .minimal_keyboard_ui import install_minimal_keyboards
+
+# Canonical compact reply keyboards must be installed before modules copy names from shared.
+install_minimal_keyboards()
+
 from . import questions
 from app.services.question_handler_bridge import initialize_question_module
 from .question_entry_ui import install_question_entry_ui
@@ -49,7 +54,7 @@ install_moderation_notices()
 install_admin_result_ui()
 from . import question_subscription_gate
 from . import advertising
-# Register all redesigned reply-button aliases only after their target modules exist.
+# Register canonical and legacy reply-button aliases only after their target modules exist.
 from . import visible_button_aliases
 # Must be registered before payments.py, whose legacy pre-checkout handler accepts all invoices.
 from . import payment_guard
