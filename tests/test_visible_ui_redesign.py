@@ -10,17 +10,18 @@ def test_primary_menu_has_compact_labels() -> None:
     assert labels == [
         "💬 Чат",
         "❓ Вопросы",
-        "🎮 Игры",
         "👤 Профиль",
+        "🎮 Игры",
         "🎁 Друзья",
-        "📣 Реклама",
+        "☀️ Мой день",
+        "✨ Ещё",
     ]
 
 
 def test_admin_menu_has_compact_admin_label() -> None:
     labels = _labels(main_menu(True))
     assert "⚙️ Админка" in labels
-    assert "📣 Реклама" not in labels
+    assert "✨ Ещё" not in labels
 
 
 def test_new_and_legacy_labels_are_supported() -> None:
@@ -36,6 +37,8 @@ def test_new_and_legacy_labels_are_supported() -> None:
     assert '"🎮 Мини-игры"' in source
     assert '"⚙️ Админка"' in source
     assert '"⚙️ Панель управления"' in source
+    assert '"☀️ Мой день"' in source
+    assert '"✨ Ещё"' in source
 
 
 def test_start_screen_describes_information_architecture() -> None:

@@ -12,6 +12,8 @@ MAIN_LABELS = {
     "games": "🎮 Игры",
     "profile": "👤 Профиль",
     "friends": "🎁 Друзья",
+    "daily": "☀️ Мой день",
+    "more": "✨ Ещё",
     "ads": "📣 Реклама",
     "admin": "⚙️ Админка",
 }
@@ -32,22 +34,27 @@ def _reply(rows: list[list[KeyboardButton]]) -> ReplyKeyboardMarkup:
         resize_keyboard=True,
         one_time_keyboard=False,
         is_persistent=False,
+        input_field_placeholder="Выберите раздел",
     )
 
 
 def main_menu(is_admin: bool = False) -> ReplyKeyboardMarkup:
-    return _reply([
+    rows = [
         [KeyboardButton(text=MAIN_LABELS["chat"])],
         [
             KeyboardButton(text=MAIN_LABELS["questions"]),
-            KeyboardButton(text=MAIN_LABELS["games"]),
+            KeyboardButton(text=MAIN_LABELS["profile"]),
         ],
         [
-            KeyboardButton(text=MAIN_LABELS["profile"]),
+            KeyboardButton(text=MAIN_LABELS["games"]),
             KeyboardButton(text=MAIN_LABELS["friends"]),
         ],
-        [KeyboardButton(text=MAIN_LABELS["admin"] if is_admin else MAIN_LABELS["ads"])],
-    ])
+        [
+            KeyboardButton(text=MAIN_LABELS["daily"]),
+            KeyboardButton(text=MAIN_LABELS["admin"] if is_admin else MAIN_LABELS["more"]),
+        ],
+    ]
+    return _reply(rows)
 
 
 def main_menu_with_question(display_name: str, is_admin: bool = False) -> ReplyKeyboardMarkup:
