@@ -48,7 +48,9 @@ async def main() -> None:
 
     logger.info("Запуск Telegram-бота")
     try:
-        await bot.delete_webhook(drop_pending_updates=True)
+        # Never discard queued updates during a normal deploy/restart. In
+        # particular, successful-payment updates must survive short downtime.
+        await bot.delete_webhook(drop_pending_updates=False)
         await dispatcher.start_polling(bot)
     finally:
         await stop_background_tasks(background_tasks)
