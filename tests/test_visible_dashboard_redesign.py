@@ -2,11 +2,16 @@ from pathlib import Path
 
 
 def test_profile_is_action_first_dashboard() -> None:
-    source = Path("app/handlers/profile_view.py").read_text(encoding="utf-8")
-    assert "👤 Мой профиль" in source
-    assert "🏆 Мои достижения" in source
-    assert "⭐ Баланс и вывод" in source
-    assert "🏠 На главную" in source
+    profile = Path("app/handlers/profile_view.py").read_text(encoding="utf-8")
+    hub = Path("app/handlers/profile_action_entry.py").read_text(encoding="utf-8")
+    assert "👤 Мой профиль" in profile
+    assert "⚡ Активность" in profile
+    assert "🎁 Награды" in profile
+    assert "🤝 Социальное" in profile
+    assert "👑 Премиум" in profile
+    assert "🏆 Достижения" in hub
+    assert "⭐ Баланс" in hub
+    assert "🏠 На главную" in profile
 
 
 def test_questions_home_has_prominent_actions() -> None:
