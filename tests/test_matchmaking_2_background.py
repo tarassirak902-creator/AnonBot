@@ -6,7 +6,7 @@ def test_background_worker_runs_matchmaking_recovery() -> None:
     assert "async def matchmaking_recovery_loop()" in source
     assert "recover_matchmaking_state()" in source
     assert 'name="matchmaking_recovery"' in source
-    assert "await asyncio.sleep(60)" in source
+    assert "matchmaking_auto_recovery" in source
 
 
 def test_startup_still_repairs_matchmaking_state() -> None:
