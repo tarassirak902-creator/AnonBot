@@ -1,10 +1,6 @@
 from .shared import *
 from app.core.ui_copy import metric, screen, section
-from app.services.profile_insights import (
-    achievement_progress,
-    build_achievements,
-    load_profile_insights,
-)
+from app.services.profile_insights import achievement_progress, build_achievements, load_profile_insights
 
 
 PROFILE_TITLE = "👤 Мой профиль"
@@ -34,11 +30,8 @@ async def _safe_reputation(user_id: int) -> dict:
     result = dict(DEFAULT_REPUTATION)
     if isinstance(reputation, dict):
         result.update(reputation)
-    result["positive"] = _safe_int(result.get("positive"))
-    result["neutral"] = _safe_int(result.get("neutral"))
-    result["negative"] = _safe_int(result.get("negative"))
-    result["total"] = _safe_int(result.get("total"))
-    result["xp"] = _safe_int(result.get("xp"))
+    for key in ("positive", "neutral", "negative", "total", "xp"):
+        result[key] = _safe_int(result.get(key))
     result["level"] = max(1, _safe_int(result.get("level"), 1))
     try:
         result["score"] = float(result.get("score", 0.0) or 0.0)
@@ -48,33 +41,16 @@ async def _safe_reputation(user_id: int) -> dict:
 
 
 def get_profile_keyboard(is_vip: bool) -> InlineKeyboardMarkup:
-    vip_btn_text = "👑 Управление VIP" if is_vip else "👑 Подключить VIP"
     return InlineKeyboardMarkup(inline_keyboard=[
         [
-            InlineKeyboardButton(text="🎪 Событие", callback_data="weekly_event_hub"),
-            InlineKeyboardButton(text="🎁 Бонус", callback_data="profile_daily_reward"),
+            InlineKeyboardButton(text="⚡ Активность", callback_data="profile_hub_activity"),
+            InlineKeyboardButton(text="🎁 Награды", callback_data="profile_hub_rewards"),
         ],
         [
-            InlineKeyboardButton(text="🎯 Задания", callback_data="engagement_missions"),
-            InlineKeyboardButton(text="⚡ Активность", callback_data="user_activity_center"),
+            InlineKeyboardButton(text="🤝 Социальное", callback_data="profile_hub_social"),
+            InlineKeyboardButton(text="👑 Премиум", callback_data="profile_hub_premium"),
         ],
-        [
-            InlineKeyboardButton(text="🤝 Контакты", callback_data="community_connections"),
-            InlineKeyboardButton(text="🕘 История", callback_data="community_dialog_history"),
-        ],
-        [InlineKeyboardButton(text="🏆 Мои достижения", callback_data="profile_achievements")],
-        [
-            InlineKeyboardButton(text="⭐ Баланс и вывод", callback_data="profile_withdraw"),
-            InlineKeyboardButton(text=vip_btn_text, callback_data="buy_vip_sub"),
-        ],
-        [
-            InlineKeyboardButton(text="🎁 Подарки", callback_data="profile_my_received_gifts"),
-            InlineKeyboardButton(text="👥 Друзья", callback_data="profile_invited_users"),
-        ],
-        [
-            InlineKeyboardButton(text="🔍 Раскрытия", callback_data="profile_my_revealed"),
-            InlineKeyboardButton(text="🔄 Обновить", callback_data="profile_refresh"),
-        ],
+        [InlineKeyboardButton(text="🔄 Обновить", callback_data="profile_refresh")],
         [InlineKeyboardButton(text="🏠 На главную", callback_data="nav_main_menu")],
     ])
 
@@ -102,46 +78,35 @@ async def build_profile_screen(user_id: int) -> tuple[str, InlineKeyboardMarkup]
     referrals_total = _safe_int(getattr(insights, "referrals_total", 0))
     questions_received = _safe_int(getattr(insights, "questions_received", 0))
     questions_sent = _safe_int(getattr(insights, "questions_sent", 0))
-    answers_received = _safe_int(getattr(insights, "answers_received", 0))
-    questions_answered = _safe_int(getattr(insights, "questions_answered", 0))
 
-    identity = first_name
-    if username:
-        identity += f" · @{username}"
-
+    identity = first_name + (f" · @{username}" if username else "")
     status_line = "👑 VIP" if is_vip else "🌙 Обычный"
     rating_text = f"{reputation['score']:+.1f}%" if reputation["total"] else "нет оценок"
+
     text = screen(
         PROFILE_TITLE,
-        intro=(
-            f"<b>{identity}</b>\n"
-            f"{status_line} · ⭐ <b>{stars_balance}</b> · 🏆 <b>{unlocked}/{total}</b>"
-        ),
+        intro=f"<b>{identity}</b>\n{status_line} · ⭐ <b>{stars_balance}</b> · 🏆 <b>{unlocked}/{total}</b>",
         sections=(
-            section("Прогресс", (
+            section("Статус", (
                 metric("⚡", "Уровень", reputation["level"]),
                 metric("✨", "XP", reputation["xp"]),
                 metric("⭐", "Репутация", rating_text),
                 metric("🗳", "Оценок", reputation["total"]),
             )),
-            section("Активность", (
+            section("Ключевые показатели", (
                 metric("💬", "Диалогов", completed_chats),
                 metric("📅", "Дней с CASPER", days_in_bot),
                 metric("🎁", "Подарков", gifts_received),
-                metric("👥", "Друзей", referrals_total),
+                metric("👥", "Приглашений", referrals_total),
             )),
-            section("Вопросы", (
-                metric("📥", "Получено", questions_received),
-                metric("✉️", "Отправлено", questions_sent),
-                metric("✅", "Ответов", answers_received),
-                metric("💬", "Ответил", questions_answered),
-            )),
-            section("Безопасность", (
+            section("Активность", (
+                metric("📥", "Вопросов получено", questions_received),
+                metric("✉️", "Вопросов отправлено", questions_sent),
                 metric("⚠️", "Жалоб", complaints),
                 metric("🚨", "Предупреждений", f"{warnings_count}/3"),
             )),
         ),
-        footer="Участвуй в событии недели и забирай дополнительную награду.",
+        footer="Все функции профиля собраны по разделам: активность, награды, социальное и премиум.",
     )
     return text, get_profile_keyboard(is_vip)
 
