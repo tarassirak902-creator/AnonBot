@@ -4,6 +4,7 @@ from aiogram import F
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
 
 from app import database as db
+from app.core.ui_copy import screen
 from app.handlers.shared import router, safe_delete_message
 from app.services.profile_insights import build_achievements, load_profile_insights
 
@@ -21,19 +22,21 @@ async def profile_achievements_handler(callback: CallbackQuery) -> None:
     stars_balance = await db.get_user_balance(callback.from_user.id)
     achievements = build_achievements(insights, is_vip=is_vip, stars_balance=stars_balance)
 
-    rows = []
+    items = []
     for item in achievements:
         marker = "✅" if item.unlocked else "🔒"
-        rows.append(f"{marker} {item.icon} <b>{item.title}</b>\n<i>{item.description}</i>")
+        items.append(f"{marker} {item.icon} <b>{item.title}</b>\n<i>{item.description}</i>")
 
-    text = (
-        "🏆 <b>Достижения CASPER</b>\n"
-        "━━━━━━━━━━━━━━\n\n"
-        + "\n\n".join(rows)
+    text = screen(
+        "🏆 Достижения",
+        sections=("\n\n".join(items),),
+        footer="Выполняйте цели, чтобы открыть новые достижения.",
     )
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🔄 Обновить", callback_data="profile_achievements")],
-        [InlineKeyboardButton(text="↩️ Назад в профиль", callback_data="profile_back")],
+        [
+            InlineKeyboardButton(text="🔄 Обновить", callback_data="profile_achievements"),
+            InlineKeyboardButton(text="⬅️ В профиль", callback_data="profile_back"),
+        ],
     ])
 
     await callback.answer()
