@@ -36,6 +36,11 @@ def test_chat_menu_uses_compact_labels() -> None:
     assert all(len(label.split()) <= 2 for label in labels)
 
 
+def test_reply_keyboards_can_be_collapsed() -> None:
+    assert main_menu(False).is_persistent is False
+    assert chat_menu().is_persistent is False
+
+
 def test_every_compact_label_has_an_explicit_route() -> None:
     for label in (*MAIN_LABELS.values(), *CHAT_LABELS.values()):
         assert f'"{label}"' in ALIASES
