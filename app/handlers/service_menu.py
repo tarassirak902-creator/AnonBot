@@ -1,55 +1,89 @@
 from .shared import *
+from app.core.ui_copy import screen, section
+from app.core.ui_labels import ButtonText
 
 SUPPORT_USERNAME = "dasha_pri"
 NEWS_CHANNEL_USERNAME = "caspergoapp"
 CURRENT_VERSION = "2.3.9"
 
-ABOUT_TEXT = (
-    "👻 <b>CASPER GO</b>\n\n"
-    f"<b>Версия:</b> {CURRENT_VERSION}\n\n"
-    "CASPER GO — это анонимный Telegram-бот для безопасного общения, знакомств и развлечений.\n\n"
-    "<b>Возможности:</b>\n\n"
-    "💬 Анонимные диалоги\n🎮 Мини-игры и дуэли\n🎁 Подарки собеседнику\n"
-    "💎 VIP-возможности\n💰 Внутренний баланс\n🏆 Игровая статистика\n"
-    "🛡️ Система жалоб и модерации\n\n"
-    "Мы постоянно развиваем CASPER GO, добавляя новые функции, исправляя ошибки и улучшая удобство использования.\n\n"
-    "Спасибо, что выбираете CASPER GO! 💜"
+ABOUT_TEXT = screen(
+    "👻 О CASPER GO",
+    intro=f"Версия {CURRENT_VERSION}",
+    sections=(
+        section("Возможности", (
+            "💬 Анонимные диалоги",
+            "🎮 Мини-игры и дуэли",
+            "🎁 Подарки собеседнику",
+            "👑 VIP-возможности",
+            "⭐ Внутренний баланс",
+            "🛡 Жалобы и модерация",
+        )),
+    ),
+    footer="Спасибо, что пользуетесь CASPER GO.",
 )
 
-PRIVACY_TEXT = (
-    "🔐 <b>Политика конфиденциальности</b>\n\n"
-    "Используя CASPER GO, вы соглашаетесь с правилами сервиса.\n\n"
-    "Мы уделяем особое внимание безопасности пользователей.\n\n"
-    "Мы не публикуем ваши персональные данные и не передаём их третьим лицам.\n\n"
-    "Для корректной работы бота сохраняются только необходимые данные:\n\n"
-    "• Telegram ID\n• настройки профиля\n• баланс аккаунта\n• игровая статистика\n• VIP-статус\n\n"
-    "Содержимое анонимных диалогов предназначено только для их участников.\n\n"
-    "Все платежи выполняются через официальные сервисы Telegram.\n\n"
-    "Если у вас возникли вопросы, вы можете обратиться в службу поддержки."
+PRIVACY_TEXT = screen(
+    "🔐 Конфиденциальность",
+    intro="Мы сохраняем только данные, необходимые для работы бота.",
+    sections=(
+        section("Что хранится", (
+            "• Telegram ID",
+            "• настройки профиля",
+            "• баланс и VIP-статус",
+            "• игровая статистика",
+        )),
+        section("Важно", (
+            "• персональные данные не публикуются",
+            "• платежи проходят через Telegram",
+            "• содержимое диалогов предназначено их участникам",
+        )),
+    ),
+    footer="По вопросам обратитесь в поддержку.",
 )
 
 
 def dismiss_kb(*rows: list[InlineKeyboardButton]) -> InlineKeyboardMarkup:
     keyboard = list(rows)
-    keyboard.append([InlineKeyboardButton(text="✅ Понял, можно удалить", callback_data="service_message_delete")])
+    keyboard.append([
+        InlineKeyboardButton(
+            text=ButtonText.CLOSE,
+            callback_data="service_message_delete",
+        )
+    ])
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
 
 @router.message(Command("support"))
 async def cmd_support(message: Message):
     await message.answer(
-        "🛟 <b>Техническая поддержка CASPER</b>\n\nОпишите проблему и приложите скриншот, если он поможет разобраться.",
+        screen(
+            "🛟 Поддержка",
+            intro="Опишите проблему и при необходимости приложите скриншот.",
+        ),
         parse_mode="HTML",
-        reply_markup=dismiss_kb([InlineKeyboardButton(text="🛟 Написать в поддержку", url=f"https://t.me/{SUPPORT_USERNAME}")]),
+        reply_markup=dismiss_kb([
+            InlineKeyboardButton(
+                text="🛟 Написать",
+                url=f"https://t.me/{SUPPORT_USERNAME}",
+            )
+        ]),
     )
 
 
 @router.message(Command("news"))
 async def cmd_news(message: Message):
     await message.answer(
-        "📢 <b>Новости и обновления CASPER</b>\n\nВсе важные объявления и новые версии публикуются в официальном канале.",
+        screen(
+            "📢 Новости",
+            intro="Обновления и важные объявления публикуются в официальном канале.",
+        ),
         parse_mode="HTML",
-        reply_markup=dismiss_kb([InlineKeyboardButton(text="📢 Перейти в канал", url=f"https://t.me/{NEWS_CHANNEL_USERNAME}")]),
+        reply_markup=dismiss_kb([
+            InlineKeyboardButton(
+                text="📢 Открыть канал",
+                url=f"https://t.me/{NEWS_CHANNEL_USERNAME}",
+            )
+        ]),
     )
 
 
@@ -59,8 +93,8 @@ async def cmd_about(message: Message):
         ABOUT_TEXT,
         parse_mode="HTML",
         reply_markup=dismiss_kb(
-            [InlineKeyboardButton(text="📢 Новости", url=f"https://t.me/{NEWS_CHANNEL_USERNAME}")],
-            [InlineKeyboardButton(text="🛟 Поддержка", url=f"https://t.me/{SUPPORT_USERNAME}")],
+            [InlineKeyboardButton(text=ButtonText.NEWS, url=f"https://t.me/{NEWS_CHANNEL_USERNAME}")],
+            [InlineKeyboardButton(text=ButtonText.SUPPORT, url=f"https://t.me/{SUPPORT_USERNAME}")],
         ),
     )
 
@@ -70,14 +104,16 @@ async def cmd_privacy(message: Message):
     await message.answer(
         PRIVACY_TEXT,
         parse_mode="HTML",
-        reply_markup=dismiss_kb([InlineKeyboardButton(text="🛟 Поддержка", url=f"https://t.me/{SUPPORT_USERNAME}")]),
+        reply_markup=dismiss_kb([
+            InlineKeyboardButton(text=ButtonText.SUPPORT, url=f"https://t.me/{SUPPORT_USERNAME}")
+        ]),
     )
 
 
 @router.callback_query(F.data == "service_refresh_bot")
 async def service_refresh_bot(callback: CallbackQuery, state: FSMContext):
     """Совместимость со старой кнопкой обновления из версии 2.3.8."""
-    await callback.answer("CASPER перезапущен")
+    await callback.answer("Сессия обновлена")
     user_id = callback.from_user.id
     await state.clear()
     cancel_search_timer(user_id)
@@ -94,7 +130,10 @@ async def service_refresh_bot(callback: CallbackQuery, state: FSMContext):
         try:
             await callback.bot.send_message(
                 partner_id,
-                "👻 <b>CASPER</b>\n\nСобеседник перезапустил бота. Диалог завершён.",
+                screen(
+                    "💬 Диалог завершён",
+                    intro="Собеседник обновил сессию бота.",
+                ),
                 parse_mode="HTML",
                 reply_markup=main_menu(partner_id in ADMIN_IDS),
             )
@@ -112,7 +151,6 @@ async def service_message_delete(callback: CallbackQuery):
     await safe_delete_message(callback.message)
 
 
-# Совместимость со старыми сообщениями 2.3.8.
 @router.callback_query(F.data.in_({"service_menu_close", "service_menu_back"}))
 async def old_service_message_close(callback: CallbackQuery):
     await callback.answer()

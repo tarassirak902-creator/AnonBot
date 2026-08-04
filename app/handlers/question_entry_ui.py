@@ -6,6 +6,7 @@ from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMar
 
 from app.core.keyboards import main_menu
 from app.core.ui_copy import screen
+from app.core.ui_labels import ButtonText, ScreenTitle
 
 from . import questions
 from .shared import ADMIN_IDS, router, send_brand_card
@@ -20,7 +21,7 @@ def _question_entry_inline(token: str, display_name: str) -> InlineKeyboardMarku
                     callback_data=f"qtarget:{token}",
                 ),
                 InlineKeyboardButton(
-                    text="🏠 В меню",
+                    text=ButtonText.HOME,
                     callback_data="question_entry:main_menu",
                 ),
             ],
@@ -36,7 +37,7 @@ async def show_inline_question_entry(message: Message, token: str, owner) -> Non
         message,
         "actions",
         screen(
-            "❓ Анонимный вопрос",
+            ScreenTitle.QUESTIONS,
             intro=f"Получатель: {display_name}",
             footer="Ваше имя останется скрытым.",
         ),
@@ -56,7 +57,7 @@ async def close_question_entry(callback: CallbackQuery, state: FSMContext) -> No
     await send_brand_card(
         callback.message,
         "main_menu",
-        screen("👻 Главное меню", footer="Выберите раздел."),
+        screen(ScreenTitle.MAIN_MENU, footer="Выберите раздел."),
         main_menu(callback.from_user.id in ADMIN_IDS),
     )
 

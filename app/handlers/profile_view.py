@@ -1,5 +1,6 @@
 from .shared import *
 from app.core.ui_copy import metric, screen, section
+from app.core.ui_labels import ButtonText, ScreenTitle
 from app.services.profile_insights import (
     achievement_progress,
     build_achievements,
@@ -12,7 +13,7 @@ def get_profile_keyboard(is_vip: bool) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
         [
             InlineKeyboardButton(text="🏆 Достижения", callback_data="profile_achievements"),
-            InlineKeyboardButton(text="🔄 Обновить", callback_data="profile_refresh"),
+            InlineKeyboardButton(text=ButtonText.REFRESH, callback_data="profile_refresh"),
         ],
         [
             InlineKeyboardButton(text=vip_btn_text, callback_data="buy_vip_sub"),
@@ -26,7 +27,7 @@ def get_profile_keyboard(is_vip: bool) -> InlineKeyboardMarkup:
             InlineKeyboardButton(text="🔍 Раскрытия", callback_data="profile_my_revealed"),
             InlineKeyboardButton(text="👥 Приглашения", callback_data="profile_invited_users"),
         ],
-        [InlineKeyboardButton(text="🏠 Главное меню", callback_data="nav_main_menu")],
+        [InlineKeyboardButton(text=ButtonText.HOME, callback_data="nav_main_menu")],
     ])
 
 
@@ -46,7 +47,7 @@ async def build_profile_screen(user_id: int) -> tuple[str, InlineKeyboardMarkup]
     unlocked, total = achievement_progress(achievements)
 
     text = screen(
-        "👤 Профиль",
+        ScreenTitle.PROFILE,
         sections=(
             section("Статус", (
                 metric("📅", "В боте", f"{insights.days_in_bot} дн."),

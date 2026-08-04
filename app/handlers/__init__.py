@@ -3,11 +3,19 @@ from .shared import router, reset_inactivity_timer, cancel_search_timer
 from . import questions
 from app.services.question_handler_bridge import initialize_question_module
 from .question_entry_ui import install_question_entry_ui
+from .question_copy_ui import install_question_copy_ui
+from .question_browser_ui import install_question_browser_ui
+from .question_delivery_ui import install_question_delivery_ui
+from .question_details_ui import install_question_details_ui
 from .admin_card_ui import install_admin_card_ui
 
 # Install UI/service boundaries before callback modules import shared symbols.
 initialize_question_module(questions)
 install_question_entry_ui()
+install_question_copy_ui()
+install_question_browser_ui()
+install_question_delivery_ui()
+install_question_details_ui()
 install_admin_card_ui()
 
 from . import commands
@@ -15,6 +23,15 @@ from . import service_menu
 from . import forms
 from . import admin_commands
 from . import casper_game
+# Unified admin and user entry screens must be registered before legacy handlers.
+from . import admin_overview_ui
+from . import admin_lists_ui
+from . import admin_confirmation_ui
+from . import admin_warning_ui
+from . import user_actions_ui
+from . import dialog_ui
+from .search_ui import install_search_copy
+install_search_copy()
 from . import menus
 from . import profile_achievements
 # Payment/profile entry adapters must be registered before legacy profile callbacks.
@@ -25,6 +42,11 @@ from . import callbacks_duels
 from . import callbacks_gifts
 from . import callbacks_broadcast
 from . import callbacks_admin
+# Patch presentation-only moderation boundaries after the legacy module is loaded.
+from .moderation_notices_ui import install_moderation_notices
+from .admin_results_ui import install_admin_result_ui
+install_moderation_notices()
+install_admin_result_ui()
 from . import question_subscription_gate
 from . import advertising
 # Must be registered before payments.py, whose legacy pre-checkout handler accepts all invoices.

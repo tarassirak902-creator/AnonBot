@@ -5,6 +5,7 @@ from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMar
 
 from app import database as db
 from app.core.ui_copy import screen
+from app.core.ui_labels import ButtonText, ScreenTitle
 from app.handlers.shared import router, safe_delete_message
 from app.services.profile_insights import build_achievements, load_profile_insights
 
@@ -28,14 +29,14 @@ async def profile_achievements_handler(callback: CallbackQuery) -> None:
         items.append(f"{marker} {item.icon} <b>{item.title}</b>\n<i>{item.description}</i>")
 
     text = screen(
-        "🏆 Достижения",
+        ScreenTitle.ACHIEVEMENTS,
         sections=("\n\n".join(items),),
         footer="Выполняйте цели, чтобы открыть новые достижения.",
     )
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [
-            InlineKeyboardButton(text="🔄 Обновить", callback_data="profile_achievements"),
-            InlineKeyboardButton(text="⬅️ В профиль", callback_data="profile_back"),
+            InlineKeyboardButton(text=ButtonText.REFRESH, callback_data="profile_achievements"),
+            InlineKeyboardButton(text=ButtonText.BACK, callback_data="profile_back"),
         ],
     ])
 

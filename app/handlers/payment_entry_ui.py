@@ -5,6 +5,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, LabeledPrice
 
 from app.core.action_ui import payment_description, withdraw_screen
+from app.core.ui_labels import ButtonText
 
 from .shared import UserWithdraw, db, pending_invoice_message_ids, router, safe_delete_message
 
@@ -14,7 +15,7 @@ async def buy_vip_entry(callback: CallbackQuery) -> None:
     await callback.answer()
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="👑 Оплатить 100 ⭐", pay=True)],
-        [InlineKeyboardButton(text="⬅️ Назад в профиль", callback_data="profile_back")],
+        [InlineKeyboardButton(text=ButtonText.BACK, callback_data="profile_back")],
     ])
     await safe_delete_message(callback.message)
     invoice = await callback.message.answer_invoice(
@@ -43,7 +44,7 @@ async def profile_withdraw_entry(callback: CallbackQuery, state: FSMContext) -> 
 
     await callback.answer()
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="⬅️ Назад в профиль", callback_data="profile_back")]
+        [InlineKeyboardButton(text=ButtonText.BACK, callback_data="profile_back")]
     ])
     await safe_delete_message(callback.message)
     await callback.message.answer(

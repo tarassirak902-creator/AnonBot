@@ -7,6 +7,7 @@ from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 from app import database as db
 from app.core.ui_copy import metric, screen, section
+from app.core.ui_labels import ButtonText, ScreenTitle
 
 
 async def build_compact_admin_user_card(user):
@@ -51,7 +52,7 @@ async def build_compact_admin_user_card(user):
     state_label = "Заблокирован" if blocked else "Активен"
     vip_label = "Активен" if is_vip else "Нет"
     text = screen(
-        "👤 Карточка пользователя",
+        ScreenTitle.USER_CARD,
         sections=(
             section("Основное", [
                 metric("🆔", "ID", uid),
@@ -87,18 +88,18 @@ async def build_compact_admin_user_card(user):
 
     rows = [[InlineKeyboardButton(text=vip_text, callback_data=vip_callback)], warning_buttons]
     if blocked:
-        rows.append([InlineKeyboardButton(text="✅ Разблокировать", callback_data=f"admin_unblock_{uid}")])
+        rows.append([InlineKeyboardButton(text=ButtonText.UNBLOCK, callback_data=f"admin_unblock_{uid}")])
     else:
         rows.append([
             InlineKeyboardButton(text="🔇 Мут 24 ч.", callback_data=f"admin_confirm_mute_{uid}"),
-            InlineKeyboardButton(text="⛔ Заблокировать", callback_data=f"admin_confirm_ban_{uid}"),
+            InlineKeyboardButton(text=ButtonText.BLOCK, callback_data=f"admin_confirm_ban_{uid}"),
         ])
     rows.extend([
         [
-            InlineKeyboardButton(text="📜 История", callback_data=f"admin_user_history_{uid}"),
-            InlineKeyboardButton(text="🔄 Обновить", callback_data=f"admin_user_card_{uid}"),
+            InlineKeyboardButton(text=ButtonText.HISTORY, callback_data=f"admin_user_history_{uid}"),
+            InlineKeyboardButton(text=ButtonText.REFRESH, callback_data=f"admin_user_card_{uid}"),
         ],
-        [InlineKeyboardButton(text="⬅️ Назад", callback_data="admin_back_to_users")],
+        [InlineKeyboardButton(text=ButtonText.BACK, callback_data="admin_back_to_users")],
     ])
     return text, InlineKeyboardMarkup(inline_keyboard=rows)
 
