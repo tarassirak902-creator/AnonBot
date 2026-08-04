@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from datetime import datetime
 
 import aiosqlite
@@ -12,10 +11,8 @@ async def ensure_community_schema() -> None:
     async with aiosqlite.connect(DB_PATH, timeout=10) as conn:
         await conn.executescript(
             """
-            CREATE TABLE IF NOT EXISTS user_preferences (
+            CREATE TABLE IF NOT EXISTS reconnect_settings (
                 user_id INTEGER PRIMARY KEY,
-                language TEXT NOT NULL DEFAULT 'ru',
-                interests_json TEXT NOT NULL DEFAULT '[]',
                 allow_reconnect INTEGER NOT NULL DEFAULT 1,
                 updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
             );
@@ -34,70 +31,39 @@ async def ensure_community_schema() -> None:
         await conn.commit()
 
 
-async def get_user_preferences(user_id: int) -> dict[str, object]:
+async def is_reconnect_allowed(user_id: int) -> bool:
     await ensure_community_schema()
     async with aiosqlite.connect(DB_PATH, timeout=10) as conn:
         row = await (
             await conn.execute(
-                "SELECT language,interests_json,allow_reconnect FROM user_preferences WHERE user_id=?",
+                "SELECT allow_reconnect FROM reconnect_settings WHERE user_id=?",
                 (user_id,),
             )
         ).fetchone()
-    if not row:
-        return {"language": "ru", "interests": [], "allow_reconnect": True}
-    try:
-        interests = json.loads(row[1] or "[]")
-    except (TypeError, ValueError, json.JSONDecodeError):
-        interests = []
-    if not isinstance(interests, list):
-        interests = []
-    return {
-        "language": str(row[0] or "ru"),
-        "interests": [str(item) for item in interests[:10]],
-        "allow_reconnect": bool(row[2]),
-    }
+    return True if not row else bool(row[0])
 
 
-async def set_user_preferences(
-    user_id: int,
-    *,
-    language: str | None = None,
-    interests: list[str] | None = None,
-    allow_reconnect: bool | None = None,
-) -> dict[str, object]:
-    current = await get_user_preferences(user_id)
-    normalized_language = (language or str(current["language"])).strip().lower()[:12] or "ru"
-    normalized_interests = current["interests"] if interests is None else [
-        item.strip()[:32] for item in interests if item and item.strip()
-    ][:10]
-    reconnect = bool(current["allow_reconnect"] if allow_reconnect is None else allow_reconnect)
+async def set_reconnect_allowed(user_id: int, enabled: bool) -> bool:
+    await ensure_community_schema()
     now = datetime.now().isoformat()
     async with aiosqlite.connect(DB_PATH, timeout=10) as conn:
         await conn.execute(
-            """INSERT INTO user_preferences(user_id,language,interests_json,allow_reconnect,updated_at)
-               VALUES (?,?,?,?,?)
+            """INSERT INTO reconnect_settings(user_id,allow_reconnect,updated_at)
+               VALUES (?,?,?)
                ON CONFLICT(user_id) DO UPDATE SET
-                 language=excluded.language,
-                 interests_json=excluded.interests_json,
                  allow_reconnect=excluded.allow_reconnect,
                  updated_at=excluded.updated_at""",
-            (user_id, normalized_language, json.dumps(normalized_interests, ensure_ascii=False), int(reconnect), now),
+            (user_id, int(enabled), now),
         )
         await conn.commit()
-    return {
-        "language": normalized_language,
-        "interests": normalized_interests,
-        "allow_reconnect": reconnect,
-    }
+    return bool(enabled)
 
 
 async def request_reconnect(requester_id: int, target_id: int) -> str:
     if requester_id == target_id:
         raise ValueError("cannot reconnect with self")
     await ensure_community_schema()
-    requester = await get_user_preferences(requester_id)
-    target = await get_user_preferences(target_id)
-    if not requester["allow_reconnect"] or not target["allow_reconnect"]:
+    if not await is_reconnect_allowed(requester_id) or not await is_reconnect_allowed(target_id):
         return "disabled"
     now = datetime.now().isoformat()
     async with aiosqlite.connect(DB_PATH, timeout=10) as conn:
