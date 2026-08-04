@@ -68,8 +68,13 @@ async def _validate_payload(user_id: int, payload: str, total_amount: int) -> st
         if payload.startswith("question_reveal:"):
             public_id = payload.split(":", 1)[1]
             question = await db.get_question_by_public_id(public_id)
-            if not question or int(question[3]) != user_id or total_amount != 100:
-                return "Вопрос недоступен или стоимость изменилась."
+            if (
+                not question
+                or int(question[3]) != user_id
+                or bool(question[10])
+                or total_amount != 100
+            ):
+                return "Вопрос недоступен, автор уже раскрыт или стоимость изменилась."
             return None
 
         if payload.startswith("question_gift:"):
@@ -89,6 +94,9 @@ async def _validate_payload(user_id: int, payload: str, total_amount: int) -> st
             receiver_id = int(receiver_id_raw)
             if not gift or receiver_id == user_id:
                 return "Подарок или получатель больше недоступны."
+            current_partner = await db.get_partner(user_id)
+            if current_partner != receiver_id:
+                return "Анонимный диалог уже завершён. Создайте счёт заново."
             expected = int(gift[2] * 0.7) if await db.is_user_vip(user_id) else int(gift[2])
             if total_amount != expected:
                 return "Стоимость подарка изменилась. Создайте счёт заново."
@@ -97,8 +105,9 @@ async def _validate_payload(user_id: int, payload: str, total_amount: int) -> st
         if payload.startswith("reveal_"):
             partner_id = int(payload.split("_", 1)[1])
             expected = int(await db.get_setting("reveal_cost"))
-            if partner_id == user_id or total_amount != expected:
-                return "Стоимость раскрытия изменилась. Создайте счёт заново."
+            current_partner = await db.get_partner(user_id)
+            if partner_id == user_id or current_partner != partner_id or total_amount != expected:
+                return "Диалог завершён или стоимость раскрытия изменилась."
             return None
 
         if payload.startswith("solo_"):
@@ -114,8 +123,15 @@ async def _validate_payload(user_id: int, payload: str, total_amount: int) -> st
                 return "Повреждены данные дуэли."
             partner_id, bet = int(parts[2]), int(parts[3])
             game_type = parts[4]
-            if partner_id == user_id or game_type not in GAME_NAMES or bet != total_amount:
-                return "Некорректная дуэль. Создайте счёт заново."
+            current_partner = await db.get_partner(user_id)
+            if (
+                partner_id == user_id
+                or current_partner != partner_id
+                or game_type not in GAME_NAMES
+                or bet != total_amount
+                or not 1 <= bet <= _MAX_STARS
+            ):
+                return "Некорректная или устаревшая дуэль. Создайте счёт заново."
             return None
 
         if payload.startswith("duel_accept_"):
@@ -128,7 +144,10 @@ async def _validate_payload(user_id: int, payload: str, total_amount: int) -> st
             return None
 
         if payload.startswith("ad_order_"):
-            int(payload.rsplit("_", 1)[1])
+            order_id = int(payload.rsplit("_", 1)[1])
+            order = await db.get_ad_order_for_user(order_id, user_id)
+            if not order or order[2] != "awaiting_payment" or int(order[5]) != total_amount:
+                return "Рекламный заказ недоступен или его стоимость изменилась."
             return None
 
     except (TypeError, ValueError, IndexError):
