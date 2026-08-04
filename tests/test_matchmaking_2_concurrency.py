@@ -72,3 +72,5 @@ def test_matchmaking_service_serializes_recovery_and_matching() -> None:
     assert "_MATCH_LOCK = asyncio.Lock()" in source
     assert "async with _MATCH_LOCK:" in source
     assert '"oldest_wait_seconds"' in source
+    assert 'strftime("%Y-%m-%d %H:%M:%S")' in source
+    assert "datetime(created_at)<datetime(?)" in source
