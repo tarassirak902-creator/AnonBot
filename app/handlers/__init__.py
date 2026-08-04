@@ -15,6 +15,7 @@ from . import forms
 from . import admin_commands
 from . import casper_game
 from . import menus
+from . import profile_achievements
 from . import callbacks_profile
 from . import referrals
 from . import callbacks_duels
