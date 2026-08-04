@@ -3,11 +3,13 @@ from .shared import router, reset_inactivity_timer, cancel_search_timer
 from . import questions
 from app.services.question_handler_bridge import initialize_question_module
 from .question_entry_ui import install_question_entry_ui
+from .question_copy_ui import install_question_copy_ui
 from .admin_card_ui import install_admin_card_ui
 
 # Install UI/service boundaries before callback modules import shared symbols.
 initialize_question_module(questions)
 install_question_entry_ui()
+install_question_copy_ui()
 install_admin_card_ui()
 
 from . import commands
