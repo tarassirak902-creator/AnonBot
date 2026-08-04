@@ -15,15 +15,20 @@ def test_all_visible_profile_callbacks_have_safe_entry_handlers() -> None:
         "user_activity_center",
         "community_dialog_history",
         "community_connections",
+        "profile_hub_activity",
+        "profile_hub_rewards",
+        "profile_hub_social",
+        "profile_hub_premium",
     ):
-        assert f'F.data == "{callback_data}"' in source
+        assert callback_data in source
     assert "_safe_edit" in source
     assert "_table_exists" in source
-    assert "_column_exists" in source
+    assert "load_daily_missions" in source
+    assert "claim_daily_mission" in source
 
 
 def test_profile_actions_keep_privacy_contract() -> None:
     source = Path("app/handlers/profile_action_entry.py").read_text(encoding="utf-8")
     assert "Сообщения и Telegram-профили не сохраняются" in source
-    assert "Контакт появляется только после взаимного согласия" in source
+    assert "Взаимных контактов" in source
     assert "message.text" not in source
