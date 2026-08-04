@@ -9,6 +9,7 @@ class ButtonText:
     CONFIRM = "✅ Подтвердить"
     REFRESH = "🔄 Обновить"
     DETAILS = "📊 Подробнее"
+    HISTORY = "📜 История"
     PROFILE = "👤 Профиль"
     SETTINGS = "⚙️ Настройки"
     SUPPORT = "🛟 Поддержка"
@@ -20,6 +21,8 @@ class ButtonText:
     VIP = "👑 VIP"
     PREMIUM = "💎 Premium"
     STARS = "⭐ Звёзды"
+    UNBLOCK = "✅ Разблокировать"
+    BLOCK = "⛔ Заблокировать"
 
 
 class ScreenTitle:
@@ -28,5 +31,6 @@ class ScreenTitle:
     ACHIEVEMENTS = "🏆 Достижения"
     QUESTIONS = "❓ Анонимные вопросы"
     ADMIN = "⚙️ Панель управления"
+    USER_CARD = "👤 Карточка пользователя"
     PAYMENT = "⭐ Оплата"
     WITHDRAW = "💸 Вывод звёзд"
