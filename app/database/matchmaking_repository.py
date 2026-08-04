@@ -11,6 +11,8 @@ async def try_match_user(user_id: int) -> int | None:
     A single IMMEDIATE transaction serializes concurrent joins. Stale queue rows
     are removed before selection, repeated joins preserve FIFO position, and a
     candidate is selected only when neither side participates in an active chat.
+    Recent partners are deprioritized for 30 minutes but remain a fallback when
+    there are no other users, preventing both repetitive matches and queue stalls.
     """
     async with aiosqlite.connect(DB_PATH, timeout=10) as conn:
         await conn.execute("PRAGMA busy_timeout=10000")
@@ -27,8 +29,6 @@ async def try_match_user(user_id: int) -> int | None:
                 await conn.commit()
                 return None
 
-            # Remove queue rows that can never be matched. Doing this inside the
-            # same transaction prevents concurrent workers from seeing stale users.
             await conn.execute(
                 """DELETE FROM queues
                    WHERE user_id NOT IN (SELECT user_id FROM users)
@@ -57,7 +57,6 @@ async def try_match_user(user_id: int) -> int | None:
                 await conn.commit()
                 return None
 
-            # Clear only inconsistent one-sided references involving requester.
             await conn.execute(
                 "DELETE FROM active_chats WHERE user_id=? OR partner_id=?",
                 (user_id, user_id),
@@ -74,15 +73,21 @@ async def try_match_user(user_id: int) -> int | None:
                             SELECT 1 FROM active_chats a
                              WHERE a.user_id=q.user_id OR a.partner_id=q.user_id
                         )
-                      ORDER BY q.created_at ASC, q.rowid ASC
+                      ORDER BY
+                        CASE WHEN EXISTS (
+                            SELECT 1 FROM recent_partners rp
+                             WHERE rp.user_id=?
+                               AND rp.partner_id=q.user_id
+                               AND datetime(rp.last_chat_at) >= datetime('now','-30 minutes')
+                        ) THEN 1 ELSE 0 END,
+                        q.created_at ASC,
+                        q.rowid ASC
                       LIMIT 1""",
-                    (user_id,),
+                    (user_id, user_id),
                 )
             ).fetchone()
 
             if candidate is None:
-                # INSERT OR IGNORE keeps the original created_at, so repeated taps
-                # do not push a waiting user to the end of the queue.
                 await conn.execute(
                     "INSERT OR IGNORE INTO queues(user_id,created_at) "
                     "VALUES (?,CURRENT_TIMESTAMP)",
@@ -99,6 +104,12 @@ async def try_match_user(user_id: int) -> int | None:
             await conn.executemany(
                 "INSERT INTO active_chats(user_id,partner_id,created_at) "
                 "VALUES (?,?,CURRENT_TIMESTAMP)",
+                [(user_id, partner_id), (partner_id, user_id)],
+            )
+            await conn.executemany(
+                "INSERT INTO recent_partners(user_id,partner_id,last_chat_at) "
+                "VALUES (?,?,CURRENT_TIMESTAMP) "
+                "ON CONFLICT(user_id,partner_id) DO UPDATE SET last_chat_at=excluded.last_chat_at",
                 [(user_id, partner_id), (partner_id, user_id)],
             )
             await conn.commit()
