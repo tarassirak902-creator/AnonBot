@@ -14,13 +14,7 @@ class QuestionStartContext:
 
 
 class QuestionStartContextStore:
-    """Bounded in-memory storage for personal-link entry context.
-
-    The current Telegram flow only needs short-lived context between opening a
-    ``start=ask_...`` link and pressing the reply-menu button. Keeping this in a
-    dedicated service prevents handler modules from owning unbounded global
-    dictionaries and makes expiry behavior explicit and testable.
-    """
+    """Bounded in-memory storage for personal-link entry context."""
 
     def __init__(
         self,
@@ -41,29 +35,38 @@ class QuestionStartContextStore:
     def put(self, user_id: int, context: QuestionStartContext) -> None:
         now = self._clock()
         self._prune(now)
-        self._items.pop(int(user_id), None)
-        self._items[int(user_id)] = (now, context)
+        key = int(user_id)
+        self._items.pop(key, None)
+        self._items[key] = (now, context)
         while len(self._items) > self._max_entries:
             self._items.popitem(last=False)
 
     def get(self, user_id: int) -> QuestionStartContext | None:
         now = self._clock()
         self._prune(now)
-        item = self._items.get(int(user_id))
+        key = int(user_id)
+        item = self._items.get(key)
         if item is None:
             return None
-        created_at, context = item
-        self._items.move_to_end(int(user_id))
+        _, context = item
+        # Reads update eviction recency, but expiry remains based on the original
+        # insertion timestamp. _prune therefore scans all entries instead of
+        # assuming OrderedDict order is chronological.
+        self._items.move_to_end(key)
         return context
 
     def pop(self, user_id: int) -> QuestionStartContext | None:
-        now = self._clock()
-        self._prune(now)
+        self._prune(self._clock())
         item = self._items.pop(int(user_id), None)
         return item[1] if item is not None else None
 
     def discard(self, user_id: int) -> None:
         self._items.pop(int(user_id), None)
+
+    def keys_snapshot(self) -> tuple[int, ...]:
+        """Return active keys without exposing mutable storage internals."""
+        self._prune(self._clock())
+        return tuple(self._items.keys())
 
     def __len__(self) -> int:
         self._prune(self._clock())
@@ -71,8 +74,10 @@ class QuestionStartContextStore:
 
     def _prune(self, now: float) -> None:
         expired_before = now - self._ttl_seconds
-        while self._items:
-            _, (created_at, _) = next(iter(self._items.items()))
-            if created_at > expired_before:
-                break
-            self._items.popitem(last=False)
+        expired = [
+            user_id
+            for user_id, (created_at, _) in self._items.items()
+            if created_at <= expired_before
+        ]
+        for user_id in expired:
+            self._items.pop(user_id, None)
