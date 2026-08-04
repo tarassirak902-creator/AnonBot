@@ -65,7 +65,11 @@ def install_question_services(
     )
     questions_module._question_start_targets = QuestionStartTargetMapping(store)
 
-    navigation = QuestionNavigation(page_size=int(questions_module.PAGE_SIZE))
+    # Production questions.py defines PAGE_SIZE, while focused unit tests use a
+    # minimal module stub. Keep the bridge reusable by falling back to the
+    # current production default when the host module does not expose it.
+    page_size = int(getattr(questions_module, "PAGE_SIZE", 5))
+    navigation = QuestionNavigation(page_size=page_size)
     questions_module._question_navigation = navigation
     questions_module.PAGE_SIZE = navigation.page_size
 
