@@ -5,8 +5,9 @@ from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMar
 
 from app.core.ui_copy import metric, screen, section
 from app.services.activity_health import load_platform_health, load_user_weekly_activity
+from app.services.matchmaking_service import matchmaking_health, recover_matchmaking_state
 
-from .shared import ADMIN_IDS, router
+from .shared import ADMIN_IDS, db, router
 
 
 def _activity_keyboard() -> InlineKeyboardMarkup:
@@ -69,7 +70,10 @@ async def user_activity_center(callback: CallbackQuery) -> None:
 
 def _health_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🔄 Обновить", callback_data="admin_platform_health")],
+        [
+            InlineKeyboardButton(text="🔄 Обновить", callback_data="admin_platform_health"),
+            InlineKeyboardButton(text="🧹 Восстановить матчинг", callback_data="admin_matchmaking_recover"),
+        ],
         [
             InlineKeyboardButton(text="🚨 Жалобы", callback_data="admin_complaints_dashboard"),
             InlineKeyboardButton(text="📈 Аналитика", callback_data="admin_retention_dashboard"),
@@ -84,12 +88,15 @@ def _health_keyboard() -> InlineKeyboardMarkup:
 
 async def _health_text() -> str:
     stats = await load_platform_health()
+    matchmaking = await matchmaking_health()
     problems = (
         stats["queue_stale"]
         + stats["one_sided_chats"]
         + stats["stale_chats"]
         + stats["route_errors_24h"]
         + stats["unreviewed_complaints"]
+        + matchmaking["broken_links"]
+        + matchmaking["self_links"]
     )
     status = "🟢 стабильно" if problems == 0 else ("🟡 внимание" if problems < 5 else "🔴 требуется проверка")
     return screen(
@@ -97,10 +104,11 @@ async def _health_text() -> str:
         intro=f"Техническое и модерационное состояние: <b>{status}</b>.",
         sections=(
             section("Матчинг", (
-                metric("🔎", "В очереди", stats["queue_total"]),
+                metric("🔎", "В очереди", matchmaking["queue"]),
                 metric("⏳", "Зависли в очереди", stats["queue_stale"]),
                 metric("💬", "Активных пар", stats["active_pairs"]),
-                metric("⚠️", "Односторонних связей", stats["one_sided_chats"]),
+                metric("⚠️", "Невзаимных связей", matchmaking["broken_links"]),
+                metric("🔁", "Самоссылок", matchmaking["self_links"]),
                 metric("🕒", "Старых активных строк", stats["stale_chats"]),
             )),
             section("Надёжность", (
@@ -108,7 +116,7 @@ async def _health_text() -> str:
                 metric("🚨", "Непроверенных жалоб", stats["unreviewed_complaints"]),
             )),
         ),
-        footer="Экран ничего не удаляет автоматически. Исправления выполняются осознанно через админские действия.",
+        footer="Кнопка восстановления очищает только временные битые связи и зависшую очередь. История, покупки и контакты не затрагиваются.",
     )
 
 
@@ -124,6 +132,22 @@ async def admin_platform_health(callback: CallbackQuery) -> None:
     if callback.from_user.id not in ADMIN_IDS:
         return
     await callback.answer("Обновлено")
+    await callback.message.edit_text(
+        await _health_text(), parse_mode="HTML", reply_markup=_health_keyboard()
+    )
+
+
+@router.callback_query(F.data == "admin_matchmaking_recover")
+async def admin_matchmaking_recover(callback: CallbackQuery) -> None:
+    if callback.from_user.id not in ADMIN_IDS:
+        return
+    repaired = await recover_matchmaking_state()
+    await db.log_action(
+        callback.from_user.id,
+        "admin_matchmaking_recovery",
+        f"repaired_rows={repaired}",
+    )
+    await callback.answer(f"Исправлено строк: {repaired}", show_alert=True)
     await callback.message.edit_text(
         await _health_text(), parse_mode="HTML", reply_markup=_health_keyboard()
     )
