@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from collections.abc import Iterator, MutableMapping
+from dataclasses import dataclass
 from types import ModuleType
+from typing import Any
 
 from .question_navigation import QuestionNavigation
 from .question_presentation import (
@@ -51,35 +53,52 @@ class QuestionStartTargetMapping(MutableMapping[int, tuple[str, int, str]]):
         return default if context is None else (context.token, context.owner_id, context.display_name)
 
 
-def install_question_services(
-    questions_module: ModuleType,
+@dataclass(frozen=True, slots=True)
+class QuestionModuleRuntime:
+    """Installed question-module dependencies.
+
+    Keeping the runtime object on the module makes initialization explicit,
+    idempotent and observable in tests. Re-imports no longer replace the
+    short-lived context store or reset its entries.
+    """
+
+    start_targets: QuestionStartTargetMapping
+    navigation: QuestionNavigation
+    receiver_resolver: QuestionReceiverResolver
+
+
+def initialize_question_module(
+    questions_module: ModuleType | Any,
     *,
     max_start_contexts: int = 2_000,
     start_context_ttl_seconds: float = 30 * 60,
-) -> None:
-    """Inject service-layer behavior into the legacy question handler."""
+) -> QuestionModuleRuntime:
+    """Install service dependencies once and return the module runtime."""
+
+    existing = getattr(questions_module, "_question_runtime", None)
+    if isinstance(existing, QuestionModuleRuntime):
+        return existing
 
     store = QuestionStartContextStore(
         max_entries=max_start_contexts,
         ttl_seconds=start_context_ttl_seconds,
     )
-    questions_module._question_start_targets = QuestionStartTargetMapping(store)
+    start_targets = QuestionStartTargetMapping(store)
 
-    # Production questions.py defines PAGE_SIZE, while focused unit tests use a
-    # minimal module stub. Keep the bridge reusable by falling back to the
-    # current production default when the host module does not expose it.
     page_size = int(getattr(questions_module, "PAGE_SIZE", 5))
     navigation = QuestionNavigation(page_size=page_size)
-    questions_module._question_navigation = navigation
-    questions_module.PAGE_SIZE = navigation.page_size
-
     resolver = QuestionReceiverResolver(
         get_owner_by_id=questions_module.db.get_question_owner_by_id,
         get_question_by_public_id=questions_module.db.get_question_by_public_id,
     )
+    runtime = QuestionModuleRuntime(
+        start_targets=start_targets,
+        navigation=navigation,
+        receiver_resolver=resolver,
+    )
 
     async def resolve_question_receiver(user_id: int, context: str, reference: str) -> int | None:
-        return await resolver.resolve(user_id, context, reference)
+        return await runtime.receiver_resolver.resolve(user_id, context, reference)
 
     def questions_list_inline(rows):
         items = build_question_list_items(rows)
@@ -101,7 +120,27 @@ def install_question_services(
             ] for item in items]
         )
 
+    questions_module._question_runtime = runtime
+    questions_module._question_start_targets = runtime.start_targets
+    questions_module._question_navigation = runtime.navigation
+    questions_module.PAGE_SIZE = runtime.navigation.page_size
     questions_module._resolve_question_receiver = resolve_question_receiver
     questions_module._display_name = display_owner_name
     questions_module._questions_list_inline = questions_list_inline
     questions_module._answers_list_inline = answers_list_inline
+    return runtime
+
+
+def install_question_services(
+    questions_module: ModuleType | Any,
+    *,
+    max_start_contexts: int = 2_000,
+    start_context_ttl_seconds: float = 30 * 60,
+) -> None:
+    """Backward-compatible alias for older imports."""
+
+    initialize_question_module(
+        questions_module,
+        max_start_contexts=max_start_contexts,
+        start_context_ttl_seconds=start_context_ttl_seconds,
+    )

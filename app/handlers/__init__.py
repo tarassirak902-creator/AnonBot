@@ -1,11 +1,11 @@
 # Import order matters: specific FSM/callback handlers must be registered before generic chat handlers.
 from .shared import router, reset_inactivity_timer, cancel_search_timer
 from . import questions
-from app.services.question_handler_bridge import install_question_services
+from app.services.question_handler_bridge import initialize_question_module
 
-# Transitional injection keeps the legacy handler API stable while moving
-# temporary state and receiver authorization into the application service layer.
-install_question_services(questions)
+# Install typed service dependencies once. The initializer is idempotent, so
+# module reloads do not discard short-lived personal-link context.
+initialize_question_module(questions)
 
 from . import commands
 from . import service_menu
