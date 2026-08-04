@@ -63,7 +63,7 @@ def test_payment_navigation_uses_canonical_cancel_label() -> None:
     assert premium[-1].callback_data == "qpremium_close"
 
 
-def test_link_navigation_uses_canonical_back_label() -> None:
+def test_link_navigation_returns_to_questions_home() -> None:
     buttons = _buttons(question_link_inline())
-    assert buttons[-1].text == "⬅️ Назад"
+    assert buttons[-1].text == "⬅️ В раздел вопросов"
     assert buttons[-1].callback_data == "questions:home"

@@ -1,12 +1,10 @@
 from __future__ import annotations
 
-from html import escape
-
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message
 from aiogram.fsm.context import FSMContext
 
 from app.core.ui_copy import metric, screen, section
-from app.core.ui_labels import ButtonText, ScreenTitle
+from app.core.ui_labels import ButtonText
 from app.services.question_presentation import (
     build_answer_list_items,
     build_question_list_items,
@@ -19,6 +17,15 @@ def _inline(rows: list[list[InlineKeyboardButton]]) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
+def questions_home_inline() -> InlineKeyboardMarkup:
+    return _inline([
+        [InlineKeyboardButton(text="📥 Открыть входящие вопросы", callback_data="questions:mine")],
+        [InlineKeyboardButton(text="💬 Посмотреть полученные ответы", callback_data="questions:answers")],
+        [InlineKeyboardButton(text="🔗 Поделиться моей ссылкой", callback_data="questions:link")],
+        [InlineKeyboardButton(text="🏠 На главную", callback_data="nav_main_menu")],
+    ])
+
+
 def questions_page_inline(rows, has_prev: bool, has_next: bool, offset: int) -> InlineKeyboardMarkup:
     buttons = [
         [InlineKeyboardButton(text=item.text, callback_data=item.callback_data)]
@@ -26,12 +33,12 @@ def questions_page_inline(rows, has_prev: bool, has_next: bool, offset: int) -> 
     ]
     nav: list[InlineKeyboardButton] = []
     if has_prev:
-        nav.append(InlineKeyboardButton(text="⬅️", callback_data=f"questions:page:{max(0, offset-questions.PAGE_SIZE)}"))
+        nav.append(InlineKeyboardButton(text="⬅️ Раньше", callback_data=f"questions:page:{max(0, offset-questions.PAGE_SIZE)}"))
     if has_next:
-        nav.append(InlineKeyboardButton(text="➡️", callback_data=f"questions:page:{offset+questions.PAGE_SIZE}"))
+        nav.append(InlineKeyboardButton(text="Позже ➡️", callback_data=f"questions:page:{offset+questions.PAGE_SIZE}"))
     if nav:
         buttons.append(nav)
-    buttons.append([InlineKeyboardButton(text=ButtonText.BACK, callback_data="questions:home")])
+    buttons.append([InlineKeyboardButton(text="⬅️ В раздел вопросов", callback_data="questions:home")])
     return _inline(buttons)
 
 
@@ -42,47 +49,45 @@ def answers_page_inline(rows, has_prev: bool, has_next: bool, offset: int) -> In
     ]
     nav: list[InlineKeyboardButton] = []
     if has_prev:
-        nav.append(InlineKeyboardButton(text="⬅️", callback_data=f"questions:answers_page:{max(0, offset-questions.PAGE_SIZE)}"))
+        nav.append(InlineKeyboardButton(text="⬅️ Раньше", callback_data=f"questions:answers_page:{max(0, offset-questions.PAGE_SIZE)}"))
     if has_next:
-        nav.append(InlineKeyboardButton(text="➡️", callback_data=f"questions:answers_page:{offset+questions.PAGE_SIZE}"))
+        nav.append(InlineKeyboardButton(text="Позже ➡️", callback_data=f"questions:answers_page:{offset+questions.PAGE_SIZE}"))
     if nav:
         buttons.append(nav)
-    buttons.append([InlineKeyboardButton(text=ButtonText.BACK, callback_data="questions:home")])
+    buttons.append([InlineKeyboardButton(text="⬅️ В раздел вопросов", callback_data="questions:home")])
     return _inline(buttons)
 
 
 def question_card_inline(author_revealed: bool = False) -> InlineKeyboardMarkup:
-    author_text = "👤 Автор" if author_revealed else "👤 Узнать автора · 100 ⭐"
+    author_text = "👤 Открыть автора" if author_revealed else "👤 Узнать автора · 100 ⭐"
     author_cb = "questions:show_author" if author_revealed else "questions:buy_reveal"
     return _inline([
+        [InlineKeyboardButton(text="💬 Ответить на вопрос", callback_data="questions:reply")],
         [
-            InlineKeyboardButton(text="💬 Ответить", callback_data="questions:reply"),
-            InlineKeyboardButton(text="🎁 Подарок", callback_data="questions:gift"),
+            InlineKeyboardButton(text="🎁 Отправить подарок", callback_data="questions:gift"),
+            InlineKeyboardButton(text=author_text, callback_data=author_cb),
         ],
-        [InlineKeyboardButton(text=author_text, callback_data=author_cb)],
-        [InlineKeyboardButton(text=ButtonText.BACK, callback_data="questions:back_mine")],
+        [InlineKeyboardButton(text="⬅️ К входящим", callback_data="questions:back_mine")],
     ])
 
 
 def answer_card_inline() -> InlineKeyboardMarkup:
     return _inline([
-        [
-            InlineKeyboardButton(text="❓ Задать ещё", callback_data="questions:ask_again"),
-            InlineKeyboardButton(text="🎁 Подарок", callback_data="questions:answer_gift"),
-        ],
-        [InlineKeyboardButton(text=ButtonText.BACK, callback_data="questions:back_answers")],
+        [InlineKeyboardButton(text="❓ Задать новый вопрос", callback_data="questions:ask_again")],
+        [InlineKeyboardButton(text="🎁 Отправить подарок", callback_data="questions:answer_gift")],
+        [InlineKeyboardButton(text="⬅️ К ответам", callback_data="questions:back_answers")],
     ])
 
 
 def question_link_inline() -> InlineKeyboardMarkup:
     return _inline([
-        [InlineKeyboardButton(text="📖 Как добавить", callback_data="questions:profile_help")],
-        [InlineKeyboardButton(text=ButtonText.BACK, callback_data="questions:home")],
+        [InlineKeyboardButton(text="📖 Как добавить ссылку в профиль", callback_data="questions:profile_help")],
+        [InlineKeyboardButton(text="⬅️ В раздел вопросов", callback_data="questions:home")],
     ])
 
 
 def question_profile_help_inline() -> InlineKeyboardMarkup:
-    return _inline([[InlineKeyboardButton(text=ButtonText.BACK, callback_data="questions:link")]])
+    return _inline([[InlineKeyboardButton(text="⬅️ К моей ссылке", callback_data="questions:link")]])
 
 
 def stars_amount_inline(context: str, reference: str) -> InlineKeyboardMarkup:
@@ -95,7 +100,7 @@ def stars_amount_inline(context: str, reference: str) -> InlineKeyboardMarkup:
             InlineKeyboardButton(text="⭐ 250", callback_data=f"qstars:{context}:{reference}:250"),
             InlineKeyboardButton(text="⭐ 500", callback_data=f"qstars:{context}:{reference}:500"),
         ],
-        [InlineKeyboardButton(text="✍️ Другая сумма", callback_data=f"qstars_custom:{context}:{reference}")],
+        [InlineKeyboardButton(text="✍️ Ввести другую сумму", callback_data=f"qstars_custom:{context}:{reference}")],
         [InlineKeyboardButton(text=ButtonText.CANCEL, callback_data="qstars_close")],
     ])
 
@@ -115,26 +120,32 @@ async def send_questions_home(message: Message, state: FSMContext) -> None:
     total, unread = await questions.db.count_user_questions(message.from_user.id)
     answers_total, answers_unread = await questions.db.count_user_question_answers(message.from_user.id)
     stats = await questions.db.get_question_user_stats(message.from_user.id)
+
+    unread_line = []
+    if unread:
+        unread_line.append(f"🆕 <b>{unread}</b> новых вопросов")
+    if answers_unread:
+        unread_line.append(f"🔔 <b>{answers_unread}</b> новых ответов")
+    intro = " · ".join(unread_line) if unread_line else "Новых сообщений пока нет."
+
     text = screen(
-        ScreenTitle.QUESTIONS,
-        intro="Управляйте входящими вопросами, ответами и персональной ссылкой.",
+        "❓ Анонимные вопросы",
+        intro=intro,
         sections=(
-            section("Входящие", (
-                metric("📥", "Вопросов", total),
-                metric("🆕", "Новых", unread),
-                metric("💬", "Ответов", answers_total),
-                metric("🔔", "Непрочитанных ответов", answers_unread),
+            section("Ваша активность", (
+                metric("📥", "Входящих вопросов", total),
+                metric("💬", "Полученных ответов", answers_total),
+                metric("🔗", "Переходов по ссылке", stats["visits"]),
             )),
-            section("Активность ссылки", (
-                metric("🔗", "Переходов", stats["visits"]),
+            section("Получено через ссылку", (
                 metric("🎁", "Подарков", stats["gifts"]),
                 metric("⭐", "Звёзд", stats["stars"]),
                 metric("💎", "Premium", stats["premium"]),
             )),
         ),
-        footer="Выберите раздел ниже.",
+        footer="Откройте нужный раздел или поделитесь ссылкой.",
     )
-    sent = await questions.send_brand_card(message, "questions", text, questions.questions_home_inline())
+    sent = await questions.send_brand_card(message, "questions", text, questions_home_inline())
     await questions._remember_question_screen(state, sent)
 
 
@@ -152,12 +163,8 @@ async def send_questions_page(message: Message, state: FSMContext, offset: int) 
     await state.update_data(question_list_offset=offset)
     text = screen(
         "📥 Входящие вопросы",
-        intro=(
-            "Выберите вопрос для просмотра."
-            if rows
-            else "Новых и сохранённых вопросов пока нет."
-        ),
-        footer=(f"Показано: {len(rows)}" if rows else "Поделитесь персональной ссылкой, чтобы получать вопросы."),
+        intro=("Выберите вопрос, чтобы открыть карточку." if rows else "Здесь пока пусто."),
+        footer=(f"На странице: {len(rows)}" if rows else "Поделитесь своей ссылкой — новые вопросы появятся здесь."),
     )
     content = await message.answer(
         text,
@@ -180,13 +187,9 @@ async def send_answers_page(message: Message, state: FSMContext, offset: int) ->
     await state.set_state(questions.AnonymousQuestionFlow.browsing_answers)
     await state.update_data(answer_list_offset=offset)
     text = screen(
-        "💬 Полученные ответы",
-        intro=(
-            "Выберите ответ для просмотра."
-            if rows
-            else "На ваши вопросы пока не ответили."
-        ),
-        footer=(f"Показано: {len(rows)}" if rows else "Ответы появятся здесь после ответа получателя."),
+        "💬 Ответы на ваши вопросы",
+        intro=("Выберите ответ, чтобы прочитать его." if rows else "Ответов пока нет."),
+        footer=(f"На странице: {len(rows)}" if rows else "Когда получатель ответит, сообщение появится здесь."),
     )
     content = await message.answer(
         text,
@@ -207,7 +210,7 @@ async def return_from_gift_menu(message: Message, state: FSMContext) -> None:
         row = await questions.db.get_question_by_public_id(public_id)
         await state.set_state(questions.AnonymousQuestionFlow.viewing_question)
         await message.answer(
-            screen("❓ Вопрос", intro="Вы вернулись к карточке вопроса."),
+            screen("❓ Карточка вопроса", intro="Вы вернулись к вопросу."),
             parse_mode="HTML",
             reply_markup=question_card_inline(author_revealed=bool(row[10]) if row else False),
         )
@@ -215,7 +218,7 @@ async def return_from_gift_menu(message: Message, state: FSMContext) -> None:
     if return_to == "answer":
         await state.set_state(questions.AnonymousQuestionFlow.viewing_answer)
         await message.answer(
-            screen("💬 Ответ", intro="Вы вернулись к карточке ответа."),
+            screen("💬 Карточка ответа", intro="Вы вернулись к ответу."),
             parse_mode="HTML",
             reply_markup=answer_card_inline(),
         )
@@ -228,6 +231,7 @@ def install_question_browser_ui() -> None:
     questions._send_questions_page = send_questions_page
     questions._send_answers_page = send_answers_page
     questions._return_from_gift_menu = return_from_gift_menu
+    questions.questions_home_inline = questions_home_inline
     questions.questions_page_inline = questions_page_inline
     questions.answers_page_inline = answers_page_inline
     questions.question_card_inline = question_card_inline

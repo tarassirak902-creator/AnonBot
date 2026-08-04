@@ -42,8 +42,8 @@ async def _finish_dialog(message: Message, *, find_next: bool) -> None:
             await db.remove_from_queue(user_id)
             await message.answer(
                 screen(
-                    "ℹ️ Диалог уже завершён",
-                    intro="Начинаю поиск нового собеседника.",
+                    "🔄 Ищем нового собеседника",
+                    intro="Предыдущий диалог уже завершён.",
                 ),
                 parse_mode="HTML",
             )
@@ -51,8 +51,9 @@ async def _finish_dialog(message: Message, *, find_next: bool) -> None:
         else:
             await message.answer(
                 screen(
-                    "ℹ️ Нет активного диалога",
-                    intro="Сейчас вы ни с кем не общаетесь.",
+                    "🏠 Вы уже в главном меню",
+                    intro="Активного диалога сейчас нет.",
+                    footer="Начните новое общение первой кнопкой.",
                 ),
                 parse_mode="HTML",
                 reply_markup=main_menu(user_id in ADMIN_IDS),
@@ -63,8 +64,9 @@ async def _finish_dialog(message: Message, *, find_next: bool) -> None:
         await message.bot.send_message(
             partner_id,
             screen(
-                "💬 Диалог завершён",
-                intro="Собеседник завершил общение.",
+                "👋 Диалог завершён",
+                intro="Собеседник закончил общение.",
+                footer="Вы можете сразу начать новый поиск.",
             ),
             parse_mode="HTML",
             reply_markup=main_menu(partner_id in ADMIN_IDS),
@@ -76,11 +78,11 @@ async def _finish_dialog(message: Message, *, find_next: bool) -> None:
         message,
         "dialog_ended",
         screen(
-            "💬 Диалог завершён",
+            "🔄 Ищу нового собеседника" if find_next else "👋 Диалог завершён",
             intro=(
-                "Начинаю поиск нового собеседника."
+                "Предыдущий диалог закрыт. Новый поиск уже запускается."
                 if find_next
-                else "Вы вернулись в главное меню."
+                else "Вы завершили общение и вернулись в главное меню."
             ),
         ),
         main_menu(user_id in ADMIN_IDS) if not find_next else None,
@@ -97,11 +99,11 @@ async def _finish_dialog(message: Message, *, find_next: bool) -> None:
         )
         await message.bot.send_message(
             partner_id,
-            "Хотите узнать, с кем вы общались?",
+            "Хотите узнать, кто был вашим собеседником?",
             reply_markup=reveal_offer_kb(user_id),
         )
         await message.answer(
-            "Хотите узнать, кто был вашим собеседником?",
+            "Хотите раскрыть профиль прошлого собеседника?",
             reply_markup=reveal_offer_kb(partner_id),
         )
     except Exception:
@@ -115,13 +117,13 @@ async def _finish_dialog(message: Message, *, find_next: bool) -> None:
         await start_searching(message)
 
 
-@router.message(F.text == "➡️ Следующий собеседник")
+@router.message(F.text.in_({"➡️ Новый собеседник", "➡️ Следующий собеседник"}))
 async def next_partner_ui(message: Message, state: FSMContext) -> None:
     await state.clear()
     await _finish_dialog(message, find_next=True)
 
 
-@router.message(F.text == "❌ Завершить диалог")
+@router.message(F.text.in_({"⏹ Завершить", "❌ Завершить диалог"}))
 async def end_dialog_ui(message: Message, state: FSMContext) -> None:
     await state.clear()
     await _finish_dialog(message, find_next=False)

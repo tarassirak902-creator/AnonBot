@@ -5,60 +5,71 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message, CallbackQuery
 
 from app.core.ui_copy import metric, screen, section
-from app.core.ui_labels import ButtonText, ScreenTitle
+from app.core.ui_labels import ButtonText
 
 from .shared import ADMIN_IDS, admin_panel, db, router, send_brand_card, safe_delete_message
 
 
 def admin_users_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🔍 Найти пользователя", callback_data="admin_user_search")],
         [
-            InlineKeyboardButton(text="🔍 Найти пользователя", callback_data="admin_user_search"),
-            InlineKeyboardButton(text="📥 Скачать базу", callback_data="admin_download_users"),
+            InlineKeyboardButton(text="⚠️ С предупреждениями", callback_data="admin_warned_list"),
+            InlineKeyboardButton(text="🔒 С ограничениями", callback_data="admin_restricted_list"),
         ],
-        [
-            InlineKeyboardButton(text="⚠️ Предупреждения", callback_data="admin_warned_list"),
-            InlineKeyboardButton(text="🔒 Ограничения", callback_data="admin_restricted_list"),
-        ],
+        [InlineKeyboardButton(text="📥 Скачать базу пользователей", callback_data="admin_download_users")],
         [InlineKeyboardButton(text=ButtonText.BACK, callback_data="admin_back_to_panel")],
     ])
 
 
 def admin_home_text() -> str:
     return screen(
-        ScreenTitle.ADMIN,
-        intro="Управление пользователями, рассылками, платежами и настройками.",
-        footer="Выберите раздел.",
+        "⚙️ Панель управления",
+        intro=(
+            "Быстрый доступ к пользователям, рассылкам, подаркам, "
+            "платежам и настройкам бота."
+        ),
+        sections=(
+            section("Основное", (
+                "👥 Пользователи и статистика",
+                "📨 Рассылки и рекламные кампании",
+                "🎁 Подарки и заявки на вывод",
+                "🛡 Модерация и системные настройки",
+            )),
+        ),
+        footer="Выберите раздел на клавиатуре ниже.",
     )
 
 
 def admin_statistics_text(stats: dict) -> str:
     return screen(
-        "📊 Статистика",
+        "📊 Состояние CASPER",
+        intro=(
+            f"Сейчас в очереди {stats['queue_count']}, "
+            f"активных диалогов — {stats['active_chats']}."
+        ),
         sections=(
+            section("Сегодня", (
+                metric("🆕", "Новых пользователей", stats["new_today"]),
+                metric("🎁", "Подарков отправлено", stats["gifts_today"]),
+            )),
             section("Пользователи", (
                 metric("👥", "Всего", stats["total_users"]),
-                metric("🆕", "Новых сегодня", stats["new_today"]),
                 metric("👑", "Активных VIP", stats["active_vip_users"]),
                 metric("🛍", "VIP-покупок", stats["vip_purchases"]),
             )),
-            section("Общение", (
-                metric("🔎", "В очереди", stats["queue_count"]),
-                metric("💬", "Активных диалогов", stats["active_chats"]),
-            )),
-            section("Активность", (
-                metric("🎁", "Подарков отправлено", stats["total_gifts_sent"]),
-                metric("📅", "Подарков за сутки", stats["gifts_today"]),
+            section("Монетизация и безопасность", (
                 metric("⭐", "Получено звёзд", stats["total_stars"]),
                 metric("🔍", "Раскрытий", stats["reveal_count"]),
                 metric("🚨", "Жалоб", stats["total_complaints"]),
+                metric("🎁", "Подарков всего", stats["total_gifts_sent"]),
             )),
         ),
-        footer="Действия с пользователями доступны ниже.",
+        footer="Ниже доступны поиск, списки ограничений и выгрузка базы.",
     )
 
 
-@router.message(F.text.in_({"🔧 Админ-панель", "⚙️ Админ-панель CASPER"}))
+@router.message(F.text.in_({"🔧 Админ-панель", "⚙️ Админ-панель CASPER", "⚙️ Панель управления"}))
 async def admin_panel_entry(message: Message, state: FSMContext) -> None:
     if message.from_user.id not in ADMIN_IDS:
         return

@@ -16,30 +16,30 @@ def _inline(rows) -> InlineKeyboardMarkup:
 
 def main_menu(is_admin: bool = False) -> ReplyKeyboardMarkup:
     rows = [
-        [KeyboardButton(text="💬 Найти собеседника")],
-        [KeyboardButton(text="❓ Вопросы"), KeyboardButton(text="🎮 Мини-игры")],
-        [KeyboardButton(text="👤 Моя анкета"), KeyboardButton(text="👥 Пригласить друга")],
-        [KeyboardButton(text="⚙️ Админ-панель CASPER" if is_admin else "📢 Реклама в CASPER")],
+        [KeyboardButton(text="🚀 Начать общение")],
+        [KeyboardButton(text="❓ Анонимные вопросы"), KeyboardButton(text="🎮 Игры")],
+        [KeyboardButton(text="👤 Профиль"), KeyboardButton(text="🎁 Пригласить друга")],
+        [KeyboardButton(text="⚙️ Панель управления" if is_admin else "📣 Разместить рекламу")],
     ]
     return _reply(rows)
 
 
 def main_menu_with_question(display_name: str, is_admin: bool = False) -> ReplyKeyboardMarkup:
     rows = [
-        [KeyboardButton(text=f"❓ Задать анонимный вопрос {display_name}")],
-        [KeyboardButton(text="💬 Найти собеседника")],
-        [KeyboardButton(text="❓ Вопросы"), KeyboardButton(text="🎮 Мини-игры")],
-        [KeyboardButton(text="👤 Моя анкета"), KeyboardButton(text="👥 Пригласить друга")],
-        [KeyboardButton(text="⚙️ Админ-панель CASPER" if is_admin else "📢 Реклама в CASPER")],
+        [KeyboardButton(text=f"❓ Написать {display_name} анонимно")],
+        [KeyboardButton(text="🚀 Начать общение")],
+        [KeyboardButton(text="❓ Анонимные вопросы"), KeyboardButton(text="🎮 Игры")],
+        [KeyboardButton(text="👤 Профиль"), KeyboardButton(text="🎁 Пригласить друга")],
+        [KeyboardButton(text="⚙️ Панель управления" if is_admin else "📣 Разместить рекламу")],
     ]
     return _reply(rows)
 
 
 def chat_menu() -> ReplyKeyboardMarkup:
     return _reply([
-        [KeyboardButton(text="🎁 Подарить подарок"), KeyboardButton(text="⭐ Кто собеседник")],
-        [KeyboardButton(text="⚔️ Играть с собеседником"), KeyboardButton(text="⚠️ Пожаловаться")],
-        [KeyboardButton(text="➡️ Следующий собеседник"), KeyboardButton(text="❌ Завершить диалог")],
+        [KeyboardButton(text="➡️ Новый собеседник"), KeyboardButton(text="⏹ Завершить")],
+        [KeyboardButton(text="🎁 Подарок"), KeyboardButton(text="👤 Кто это?")],
+        [KeyboardButton(text="🎮 Дуэль"), KeyboardButton(text="🚨 Жалоба")],
     ])
 
 
@@ -217,61 +217,3 @@ def questions_home_inline() -> InlineKeyboardMarkup:
         [InlineKeyboardButton(text="🔗 Моя ссылка", callback_data="questions:link")],
         [InlineKeyboardButton(text="🏠 Главное меню", callback_data="nav_main_menu")],
     ])
-
-
-def questions_page_inline(rows, has_prev: bool, has_next: bool, offset: int) -> InlineKeyboardMarkup:
-    buttons = [[InlineKeyboardButton(text=f"❓ Вопрос №{row[0]}", callback_data=f"questions:view:{row[1]}")] for row in rows]
-    nav = []
-    if has_prev:
-        nav.append(InlineKeyboardButton(text="⬅️", callback_data=f"questions:page:{max(0, offset-5)}"))
-    if has_next:
-        nav.append(InlineKeyboardButton(text="➡️", callback_data=f"questions:page:{offset+5}"))
-    if nav:
-        buttons.append(nav)
-    buttons.append([InlineKeyboardButton(text="⬅️ Назад", callback_data="questions:home")])
-    return _inline(buttons)
-
-
-def answers_page_inline(rows, has_prev: bool, has_next: bool, offset: int) -> InlineKeyboardMarkup:
-    buttons = [[InlineKeyboardButton(text=f"💬 Ответ №{row[0]}", callback_data=f"questions:answer_view:{row[1]}")] for row in rows]
-    nav = []
-    if has_prev:
-        nav.append(InlineKeyboardButton(text="⬅️", callback_data=f"questions:answers_page:{max(0, offset-5)}"))
-    if has_next:
-        nav.append(InlineKeyboardButton(text="➡️", callback_data=f"questions:answers_page:{offset+5}"))
-    if nav:
-        buttons.append(nav)
-    buttons.append([InlineKeyboardButton(text="⬅️ Назад", callback_data="questions:home")])
-    return _inline(buttons)
-
-
-def question_link_inline() -> InlineKeyboardMarkup:
-    return _inline([
-        [InlineKeyboardButton(text="📖 Как добавить в профиль", callback_data="questions:profile_help")],
-        [InlineKeyboardButton(text="⬅️ Назад", callback_data="questions:home")],
-    ])
-
-
-def question_profile_help_inline() -> InlineKeyboardMarkup:
-    return _inline([[InlineKeyboardButton(text="⬅️ К ссылке", callback_data="questions:link")]])
-
-
-def question_card_inline(author_revealed: bool = False) -> InlineKeyboardMarkup:
-    author_text = "👤 Автор" if author_revealed else "👤 Автор — 100 ⭐"
-    author_cb = "questions:show_author" if author_revealed else "questions:buy_reveal"
-    return _inline([
-        [InlineKeyboardButton(text="💬 Ответить", callback_data="questions:reply"), InlineKeyboardButton(text="🎁 Подарок", callback_data="questions:gift")],
-        [InlineKeyboardButton(text=author_text, callback_data=author_cb)],
-        [InlineKeyboardButton(text="⬅️ К вопросам", callback_data="questions:back_mine")],
-    ])
-
-
-def answer_card_inline() -> InlineKeyboardMarkup:
-    return _inline([
-        [InlineKeyboardButton(text="❓ Ещё вопрос", callback_data="questions:ask_again"), InlineKeyboardButton(text="🎁 Подарок", callback_data="questions:answer_gift")],
-        [InlineKeyboardButton(text="⬅️ К ответам", callback_data="questions:back_answers")],
-    ])
-
-
-def inline_back(callback_data: str, text: str = "⬅️ Назад") -> InlineKeyboardMarkup:
-    return _inline([[InlineKeyboardButton(text=text, callback_data=callback_data)]])
