@@ -31,7 +31,7 @@ def _reply(rows: list[list[KeyboardButton]]) -> ReplyKeyboardMarkup:
         keyboard=rows,
         resize_keyboard=True,
         one_time_keyboard=False,
-        is_persistent=True,
+        is_persistent=False,
     )
 
 
