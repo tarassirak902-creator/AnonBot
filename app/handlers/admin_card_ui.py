@@ -1,13 +1,12 @@
 from __future__ import annotations
 
 from datetime import datetime
-from html import escape
 
 import aiosqlite
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 from app import database as db
-from app.core.ui_messages import metrics, screen
+from app.core.ui_copy import metric, screen, section
 
 
 async def build_compact_admin_user_card(user):
@@ -44,9 +43,7 @@ async def build_compact_admin_user_card(user):
         questions_sent = await scalar(
             "SELECT COUNT(*) FROM anonymous_questions WHERE sender_id=?", (uid,)
         )
-        purchases = await scalar(
-            "SELECT COUNT(*) FROM purchases WHERE buyer_id=?", (uid,)
-        )
+        purchases = await scalar("SELECT COUNT(*) FROM purchases WHERE buyer_id=?", (uid,))
         spent = await scalar(
             "SELECT COALESCE(SUM(price_stars),0) FROM purchases WHERE buyer_id=?", (uid,)
         )
@@ -55,27 +52,29 @@ async def build_compact_admin_user_card(user):
     vip_label = "Активен" if is_vip else "Нет"
     text = screen(
         "👤 Карточка пользователя",
-        metrics([
-            ("🆔 ID", uid),
-            ("👤 Имя", full_name),
-            ("🔗 Username", username),
-            ("📅 Регистрация", joined),
-            ("🕒 Последняя активность", last_activity),
-        ]),
-        "<b>Активность</b>\n" + metrics([
-            ("💬 Диалоги", completed_dialogs),
-            ("📥 Вопросы получены", questions_received),
-            ("📤 Вопросы отправлены", questions_sent),
-            ("🛍 Покупки", purchases),
-            ("⭐ Потрачено", f"{spent} ⭐"),
-        ]),
-        "<b>Модерация</b>\n" + metrics([
-            ("🛡 Статус", state_label),
-            ("👑 VIP", vip_label),
-            ("⚠️ Предупреждения", f"{warnings}/3"),
-            ("🚨 Жалобы", complaints),
-        ]),
-        hint="Подробные события доступны в истории пользователя.",
+        sections=(
+            section("Основное", [
+                metric("🆔", "ID", uid),
+                metric("👤", "Имя", full_name),
+                metric("🔗", "Username", username),
+                metric("📅", "Регистрация", joined),
+                metric("🕒", "Последняя активность", last_activity),
+            ]),
+            section("Активность", [
+                metric("💬", "Диалоги", completed_dialogs),
+                metric("📥", "Вопросы получены", questions_received),
+                metric("📤", "Вопросы отправлены", questions_sent),
+                metric("🛍", "Покупки", purchases),
+                metric("⭐", "Потрачено", f"{spent} ⭐"),
+            ]),
+            section("Модерация", [
+                metric("🛡", "Статус", state_label),
+                metric("👑", "VIP", vip_label),
+                metric("⚠️", "Предупреждения", f"{warnings}/3"),
+                metric("🚨", "Жалобы", complaints),
+            ]),
+        ),
+        footer="Подробные события доступны в истории пользователя.",
     )
 
     vip_text = "❌ Снять VIP" if is_vip else "👑 Выдать VIP"
@@ -86,10 +85,7 @@ async def build_compact_admin_user_card(user):
             InlineKeyboardButton(text=f"➖ Снять ({warnings})", callback_data=f"admin_unwarn_{uid}")
         )
 
-    rows = [
-        [InlineKeyboardButton(text=vip_text, callback_data=vip_callback)],
-        warning_buttons,
-    ]
+    rows = [[InlineKeyboardButton(text=vip_text, callback_data=vip_callback)], warning_buttons]
     if blocked:
         rows.append([InlineKeyboardButton(text="✅ Разблокировать", callback_data=f"admin_unblock_{uid}")])
     else:
