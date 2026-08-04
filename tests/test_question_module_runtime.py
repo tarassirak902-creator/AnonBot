@@ -50,6 +50,22 @@ def test_initializer_is_idempotent_and_preserves_context() -> None:
     assert module.PAGE_SIZE == 7
 
 
+def test_start_target_mapping_supports_standard_mapping_operations() -> None:
+    module = make_module()
+    initialize_question_module(module)
+    module._question_start_targets[10] = ("token-a", 2, "Owner A")
+    module._question_start_targets[20] = ("token-b", 3, "Owner B")
+
+    assert set(module._question_start_targets) == {10, 20}
+    assert dict(module._question_start_targets) == {
+        10: ("token-a", 2, "Owner A"),
+        20: ("token-b", 3, "Owner B"),
+    }
+
+    module._question_start_targets.clear()
+    assert len(module._question_start_targets) == 0
+
+
 @pytest.mark.asyncio
 async def test_runtime_resolver_remains_installed() -> None:
     module = make_module()
