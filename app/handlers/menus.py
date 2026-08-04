@@ -29,13 +29,13 @@ async def solo_games_start_menu(message: Message, state: FSMContext):
         solo_games_menu_kb(),
     )
 
-@router.message(F.text == "⚔️ Играть с собеседником")
+@router.message(F.text.in_({"🎮 Дуэль", "⚔️ Играть с собеседником"}))
 async def duel_games_start_menu(message: Message, state: FSMContext):
     await state.clear()
     if not await db.get_partner(message.from_user.id):
         await message.answer("Дуэли доступны только во время активного диалога.")
         return
-    await message.answer("⚔️ <b>Выберите режим дуэли с собеседником:</b>", parse_mode="HTML", reply_markup=duel_games_menu_kb())
+    await message.answer("🎮 <b>Выберите дуэль с собеседником</b>", parse_mode="HTML", reply_markup=duel_games_menu_kb())
 
 @router.message(F.text == "👻 Поймать CASPER")
 async def search_casper_game(message: Message):
@@ -61,10 +61,9 @@ async def search_casper_game(message: Message):
     if attempts >= MAX_ATTEMPTS_PER_SEARCH:
         await message.answer(
             (
-    f"⏳ Вы использовали все "
-    f"{MAX_ATTEMPTS_PER_SEARCH} попыток этого поиска.\n\n"
-    "CASPER продолжает искать вам собеседника."
-),
+                f"⏳ Вы использовали все {MAX_ATTEMPTS_PER_SEARCH} попыток этого поиска.\n\n"
+                "CASPER продолжает искать вам собеседника."
+            ),
             reply_markup=cancel_search_menu(),
         )
         return
@@ -114,13 +113,14 @@ async def next_partner(message: Message, state: FSMContext):
     await state.clear()
     user_id = message.from_user.id
     cancel_search_timer(user_id)
-    
     await db.add_completed_chat_time(user_id)
     partner_id = await db.end_chat(user_id)
-    if partner_id: await db.add_completed_chat_time(partner_id)
+    if partner_id:
+        await db.add_completed_chat_time(partner_id)
     cancel_inactivity_timer(user_id, partner_id)
     cancel_unread_reminder(user_id)
-    if partner_id: cancel_unread_reminder(partner_id)
+    if partner_id:
+        cancel_unread_reminder(partner_id)
 
     if partner_id:
         try:
@@ -143,13 +143,14 @@ async def end_dialog(message: Message, state: FSMContext):
     await state.clear()
     user_id = message.from_user.id
     cancel_search_timer(user_id)
-    
     await db.add_completed_chat_time(user_id)
     partner_id = await db.end_chat(user_id)
-    if partner_id: await db.add_completed_chat_time(partner_id)
+    if partner_id:
+        await db.add_completed_chat_time(partner_id)
     cancel_inactivity_timer(user_id, partner_id)
     cancel_unread_reminder(user_id)
-    if partner_id: cancel_unread_reminder(partner_id)
+    if partner_id:
+        cancel_unread_reminder(partner_id)
 
     if partner_id:
         try:
@@ -170,38 +171,35 @@ async def end_dialog(message: Message, state: FSMContext):
     else:
         await message.answer("Вы не находитесь в диалоге.")
 
-@router.message(F.text == "🎁 Подарить подарок")
+@router.message(F.text.in_({"🎁 Подарок", "🎁 Подарить подарок"}))
 async def show_gifts(message: Message, skip_dialog_check: bool = False):
     user_id = message.from_user.id
     if not skip_dialog_check and not await db.get_partner(user_id):
         await message.answer("Вы не находитесь в диалоге.")
         return
-        
+
     gifts = await db.get_all_gifts()
     if not gifts:
-        await message.answer("Нет доступных подарков.")
+        await message.answer("Сейчас нет доступных подарков.")
         return
-    
-    is_vip = await db.is_user_vip(user_id)
 
+    is_vip = await db.is_user_vip(user_id)
     keyboard, row = [], []
     for g in gifts:
         gid, name, emoji, price = g
         actual_price = int(price * 0.7) if is_vip else price
         price_text = f"{actual_price} ⭐ (-30%)" if is_vip else f"{price} ⭐"
-        
-        button = InlineKeyboardButton(text=f"{emoji} {name} — {price_text}", callback_data=f"buy_gift_{gid}")
-        row.append(button)
+        row.append(InlineKeyboardButton(text=f"{emoji} {name} · {price_text}", callback_data=f"buy_gift_{gid}"))
         if len(row) == 2:
             keyboard.append(row)
             row = []
-    if row: keyboard.append(row)
-    keyboard.append([InlineKeyboardButton(text="не заслужила😜", callback_data="close_gifts_menu")])
-        
-    kb = InlineKeyboardMarkup(inline_keyboard=keyboard)
-    await message.answer("🎁 Выберите подарок для собеседника:", reply_markup=kb)
+    if row:
+        keyboard.append(row)
+    keyboard.append([InlineKeyboardButton(text="❌ Закрыть", callback_data="close_gifts_menu")])
 
-@router.message(F.text == "⭐ Кто собеседник")
+    await message.answer("🎁 <b>Подарок собеседнику</b>\n\nВыберите вариант ниже.", parse_mode="HTML", reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard))
+
+@router.message(F.text.in_({"👤 Кто это?", "⭐ Кто собеседник"}))
 async def reveal_partner(message: Message):
     user_id = message.from_user.id
     partner_info = await db.get_partner(user_id)
@@ -211,30 +209,30 @@ async def reveal_partner(message: Message):
     cost = int(await db.get_setting("reveal_cost"))
 
     pay_kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text=f"Узнать за {cost} ⭐ ", pay=True)],
-        [InlineKeyboardButton(
-            text="↩️ Назад в диалог",
-            callback_data="reveal_back_to_chat",
-        )],
+        [InlineKeyboardButton(text=f"👤 Раскрыть за {cost} ⭐", pay=True)],
+        [InlineKeyboardButton(text="⬅️ Назад в диалог", callback_data="reveal_back_to_chat")],
     ])
 
     await message.answer_invoice(
-        title="Узнать собеседника",
-        description="Раскрыть имя, username и Telegram ID собеседника.",
+        title="Раскрыть собеседника",
+        description="Показать имя, username и Telegram ID собеседника.",
         payload=f"reveal_{partner_info}",
         provider_token="",
         currency="XTR",
         prices=[LabeledPrice(label="Раскрытие личности", amount=cost)],
         start_parameter="reveal",
-        reply_markup=pay_kb
+        reply_markup=pay_kb,
     )
 
-@router.message(F.text == "⚠️ Пожаловаться")
+@router.message(F.text.in_({"🚨 Жалоба", "⚠️ Пожаловаться"}))
 async def complaint_menu(message: Message):
     if not await db.get_partner(message.from_user.id):
         await message.answer("Вы не в диалоге.")
         return
-    await message.answer("Выберите причину жалобы:", reply_markup=complaint_reasons())
+    await message.answer("🚨 <b>Жалоба на собеседника</b>\n\nВыберите причину.", parse_mode="HTML", reply_markup=complaint_reasons())
 
 @router.message(F.text.in_({"🔧 Админ-панель", "⚙️ Админ-панель CASPER", "⚙️ Панель управления"}))
 async def admin_panel_menu(message: Message):
+    if message.from_user.id not in ADMIN_IDS:
+        return
+    await message.answer("⚙️ <b>Панель управления</b>\n\nВыберите раздел.", parse_mode="HTML", reply_markup=admin_panel())
