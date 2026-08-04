@@ -8,7 +8,7 @@ import aiosqlite
 from . import repository as legacy_repository
 
 DB_PATH = legacy_repository.DB_PATH
-CURRENT_SCHEMA_VERSION = 2
+CURRENT_SCHEMA_VERSION = 3
 
 
 @dataclass(frozen=True)
@@ -63,6 +63,44 @@ async def _snapshot_matchmaking(path: str) -> MatchmakingSnapshot:
                 ]
 
     return MatchmakingSnapshot(tuple(queues), tuple(active_chats))
+
+
+async def _create_social_schema(conn: aiosqlite.Connection) -> None:
+    await conn.executescript(
+        """
+        CREATE TABLE IF NOT EXISTS chat_ratings (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            rater_id INTEGER NOT NULL,
+            rated_user_id INTEGER NOT NULL,
+            score INTEGER NOT NULL CHECK(score IN (-1,0,1)),
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE TABLE IF NOT EXISTS recent_partners (
+            user_id INTEGER NOT NULL,
+            partner_id INTEGER NOT NULL,
+            last_chat_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY(user_id, partner_id)
+        );
+        CREATE TABLE IF NOT EXISTS daily_rewards (
+            user_id INTEGER PRIMARY KEY,
+            last_claim_date TEXT,
+            streak INTEGER NOT NULL DEFAULT 0,
+            total_claims INTEGER NOT NULL DEFAULT 0
+        );
+        CREATE TABLE IF NOT EXISTS user_progress (
+            user_id INTEGER PRIMARY KEY,
+            xp INTEGER NOT NULL DEFAULT 0,
+            level INTEGER NOT NULL DEFAULT 1,
+            positive_ratings INTEGER NOT NULL DEFAULT 0,
+            neutral_ratings INTEGER NOT NULL DEFAULT 0,
+            negative_ratings INTEGER NOT NULL DEFAULT 0
+        );
+        CREATE INDEX IF NOT EXISTS idx_chat_ratings_target_time
+            ON chat_ratings(rated_user_id, created_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_recent_partners_user_time
+            ON recent_partners(user_id, last_chat_at DESC);
+        """
+    )
 
 
 async def _create_reliability_indexes(conn: aiosqlite.Connection) -> None:
@@ -140,6 +178,7 @@ async def _restore_matchmaking(path: str, snapshot: MatchmakingSnapshot) -> None
             "version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL)"
         )
         await _create_reliability_indexes(conn)
+        await _create_social_schema(conn)
         await conn.execute(
             "INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES (?,?)",
             (CURRENT_SCHEMA_VERSION, datetime.now().isoformat()),
