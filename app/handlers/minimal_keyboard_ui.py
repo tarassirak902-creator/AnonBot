@@ -12,6 +12,7 @@ MAIN_LABELS = {
     "games": "🎮 Игры",
     "profile": "👤 Профиль",
     "friends": "🎁 Друзья",
+    "daily": "☀️ Мой день",
     "more": "✨ Ещё",
     "ads": "📣 Реклама",
     "admin": "⚙️ Админка",
@@ -48,10 +49,11 @@ def main_menu(is_admin: bool = False) -> ReplyKeyboardMarkup:
             KeyboardButton(text=MAIN_LABELS["games"]),
             KeyboardButton(text=MAIN_LABELS["friends"]),
         ],
+        [
+            KeyboardButton(text=MAIN_LABELS["daily"]),
+            KeyboardButton(text=MAIN_LABELS["admin"] if is_admin else MAIN_LABELS["more"]),
+        ],
     ]
-    rows.append([
-        KeyboardButton(text=MAIN_LABELS["admin"] if is_admin else MAIN_LABELS["more"])
-    ])
     return _reply(rows)
 
 
