@@ -16,6 +16,8 @@ from . import callbacks_admin
 from . import advertising
 # Must be registered before payments.py, whose legacy pre-checkout handler accepts all invoices.
 from . import payment_guard
+# Specific successful-payment handlers must precede the generic payment handler.
+from . import duel_payments
 from . import payments
 from . import chat
 
