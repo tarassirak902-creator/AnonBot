@@ -5,6 +5,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message, CallbackQuery
 
 from app.core.ui_copy import metric, screen, section
+from app.core.ui_labels import ButtonText
 
 from .shared import ADMIN_IDS, admin_panel, db, router, send_brand_card, safe_delete_message
 
@@ -17,7 +18,7 @@ def admin_users_keyboard() -> InlineKeyboardMarkup:
             InlineKeyboardButton(text="🔒 С ограничениями", callback_data="admin_restricted_list"),
         ],
         [InlineKeyboardButton(text="📥 Скачать базу пользователей", callback_data="admin_download_users")],
-        [InlineKeyboardButton(text="⬅️ В панель управления", callback_data="admin_back_to_panel")],
+        [InlineKeyboardButton(text=ButtonText.BACK, callback_data="admin_back_to_panel")],
     ])
 
 
@@ -36,7 +37,7 @@ def admin_home_text() -> str:
                 "🛡 Модерация и системные настройки",
             )),
         ),
-        footer="Выберите действие на клавиатуре ниже.",
+        footer="Выберите раздел на клавиатуре ниже.",
     )
 
 
@@ -44,16 +45,16 @@ def admin_statistics_text(stats: dict) -> str:
     return screen(
         "📊 Состояние CASPER",
         intro=(
-            f"Сейчас в очереди <b>{stats['queue_count']}</b>, "
-            f"активных диалогов — <b>{stats['active_chats']}</b>."
+            f"Сейчас в очереди {stats['queue_count']}, "
+            f"активных диалогов — {stats['active_chats']}."
         ),
         sections=(
             section("Сегодня", (
                 metric("🆕", "Новых пользователей", stats["new_today"]),
                 metric("🎁", "Подарков отправлено", stats["gifts_today"]),
             )),
-            section("Аудитория", (
-                metric("👥", "Всего пользователей", stats["total_users"]),
+            section("Пользователи", (
+                metric("👥", "Всего", stats["total_users"]),
                 metric("👑", "Активных VIP", stats["active_vip_users"]),
                 metric("🛍", "VIP-покупок", stats["vip_purchases"]),
             )),
