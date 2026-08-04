@@ -22,7 +22,10 @@ def test_admin_menu_has_visible_control_panel_label() -> None:
 
 
 def test_new_and_legacy_labels_are_supported() -> None:
-    source = open("app/handlers/menus.py", encoding="utf-8").read()
+    menus = open("app/handlers/menus.py", encoding="utf-8").read()
+    aliases = open("app/handlers/visible_button_aliases.py", encoding="utf-8").read()
+    keyboards = open("app/core/keyboards.py", encoding="utf-8").read()
+    source = menus + aliases + keyboards
     assert '"🚀 Начать общение"' in source
     assert '"💬 Найти собеседника"' in source
     assert '"👤 Профиль"' in source

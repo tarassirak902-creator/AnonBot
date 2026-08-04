@@ -33,6 +33,8 @@ from . import dialog_ui
 from .search_ui import install_search_copy
 install_search_copy()
 from . import menus
+# Keep redesigned reply labels compatible with the restored full legacy handler module.
+from . import visible_button_aliases
 from . import profile_achievements
 # Payment/profile entry adapters must be registered before legacy profile callbacks.
 from . import payment_entry_ui
