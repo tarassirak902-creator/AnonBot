@@ -56,7 +56,7 @@ def get_profile_keyboard(is_vip: bool) -> InlineKeyboardMarkup:
         ],
         [
             InlineKeyboardButton(text="⚡ Активность", callback_data="user_activity_center"),
-            InlineKeyboardButton(text="🏆 Достижения", callback_data="profile_achievements"),
+            InlineKeyboardButton(text="🏆 Мои достижения", callback_data="profile_achievements"),
         ],
         [
             InlineKeyboardButton(text="🤝 Контакты", callback_data="community_connections"),
