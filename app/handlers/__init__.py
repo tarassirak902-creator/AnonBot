@@ -14,6 +14,8 @@ from . import callbacks_gifts
 from . import callbacks_broadcast
 from . import callbacks_admin
 from . import advertising
+# Must be registered before payments.py, whose legacy pre-checkout handler accepts all invoices.
+from . import payment_guard
 from . import payments
 from . import chat
 
