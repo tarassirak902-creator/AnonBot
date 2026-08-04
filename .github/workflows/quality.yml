@@ -1,0 +1,40 @@
+name: Quality checks
+
+on:
+  push:
+    branches: [main, "agent/**"]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  python-checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      BOT_TOKEN: "123456:TEST_TOKEN_FOR_IMPORT_ONLY"
+      ADMIN_IDS: "123456789"
+      LOG_CHANNEL_ID: "-1001234567890"
+      BOT_USERNAME: "test_bot"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+          python -m pip check
+
+      - name: Compile Python sources
+        run: python -m compileall -q app tools run.py
+
+      - name: Import application
+        run: python -c "import app.main"
