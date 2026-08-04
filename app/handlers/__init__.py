@@ -39,6 +39,7 @@ from . import events_audit_ui
 from . import commercial_profile_aliases
 from . import commercial_navigation_ui
 from . import commercial_daily_hub
+from . import platform_commercial_ui
 # Unified admin and user entry screens must be registered before legacy handlers.
 from . import admin_overview_ui
 from . import platform_dashboard_ui
