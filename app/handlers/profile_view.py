@@ -27,7 +27,7 @@ def get_profile_keyboard(is_vip: bool) -> InlineKeyboardMarkup:
             InlineKeyboardButton(text="🔍 Раскрытия", callback_data="profile_my_revealed"),
             InlineKeyboardButton(text="🔄 Обновить", callback_data="profile_refresh"),
         ],
-        [InlineKeyboardButton(text="🏠 Главная", callback_data="nav_main_menu")],
+        [InlineKeyboardButton(text="🏠 На главную", callback_data="nav_main_menu")],
     ])
 
 
