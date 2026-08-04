@@ -9,6 +9,7 @@ from .shared import ADMIN_IDS, router
 
 def _more_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="☀️ Мой день", callback_data="commercial_daily_hub")],
         [
             InlineKeyboardButton(text="📢 Новости", url=f"https://t.me/{NEWS_CHANNEL_USERNAME}"),
             InlineKeyboardButton(text="🛟 Поддержка", url=f"https://t.me/{SUPPORT_USERNAME}"),
@@ -24,6 +25,7 @@ def _more_keyboard() -> InlineKeyboardMarkup:
 
 def _admin_sections_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="⚡ Пульс", callback_data="admin_platform_pulse")],
         [InlineKeyboardButton(text="📡 Операции", callback_data="admin_ops_dashboard")],
         [
             InlineKeyboardButton(text="📈 Аналитика", callback_data="admin_retention_dashboard"),
