@@ -11,6 +11,8 @@ from app.database.repository import DB_PATH
 @dataclass(frozen=True)
 class ProfileInsights:
     days_in_bot: int = 0
+    completed_chats: int = 0
+    referrals_total: int = 0
     questions_sent: int = 0
     questions_received: int = 0
     questions_answered: int = 0
@@ -48,6 +50,8 @@ async def load_profile_insights(user_id: int, joined_at: str | None = None) -> P
             days = 0
 
     values = {
+        "completed_chats": 0,
+        "referrals_total": 0,
         "questions_sent": 0,
         "questions_received": 0,
         "questions_answered": 0,
@@ -59,6 +63,22 @@ async def load_profile_insights(user_id: int, joined_at: str | None = None) -> P
 
     async with aiosqlite.connect(DB_PATH, timeout=10) as conn:
         await conn.execute("PRAGMA busy_timeout=10000")
+
+        for table in ("chat_history", "chats_history", "completed_chats"):
+            columns = await _table_columns(conn, table)
+            if {"user_id", "partner_id"}.issubset(columns):
+                values["completed_chats"] = await _count(
+                    conn,
+                    f"SELECT COUNT(*) FROM {table} WHERE user_id=? OR partner_id=?",
+                    (user_id, user_id),
+                )
+                break
+
+        user_columns = await _table_columns(conn, "users")
+        if "referrer_id" in user_columns:
+            values["referrals_total"] = await _count(
+                conn, "SELECT COUNT(*) FROM users WHERE referrer_id=?", (user_id,)
+            )
 
         question_columns = await _table_columns(conn, "anonymous_questions")
         if {"sender_id", "receiver_id"}.issubset(question_columns):
