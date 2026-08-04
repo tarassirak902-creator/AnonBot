@@ -2,11 +2,13 @@
 from .shared import router, reset_inactivity_timer, cancel_search_timer
 from .minimal_keyboard_ui import install_minimal_keyboards
 from .keyboard_compat import install_keyboard_compat
+from .matchmaking_v2_adapter import install_matchmaking_v2
 
 # Canonical compact reply keyboards and compatibility hooks must be installed
 # before modules copy names from shared.
 install_minimal_keyboards()
 install_keyboard_compat()
+install_matchmaking_v2()
 
 from . import questions
 from app.services.question_handler_bridge import initialize_question_module
