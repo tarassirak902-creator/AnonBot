@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Iterator, MutableMapping
 from types import ModuleType
 
+from .question_navigation import QuestionNavigation
 from .question_presentation import (
     build_answer_list_items,
     build_question_list_items,
@@ -13,12 +14,7 @@ from .question_start_context import QuestionStartContext, QuestionStartContextSt
 
 
 class QuestionStartTargetMapping(MutableMapping[int, tuple[str, int, str]]):
-    """Tuple-compatible adapter for the legacy questions handler.
-
-    The handler can keep its current ``mapping[user_id] = (...)`` API while the
-    actual state is bounded and expires through ``QuestionStartContextStore``.
-    This adapter is temporary and can be deleted when the handler is split.
-    """
+    """Tuple-compatible adapter for the legacy questions handler."""
 
     def __init__(self, store: QuestionStartContextStore) -> None:
         self._store = store
@@ -33,16 +29,11 @@ class QuestionStartTargetMapping(MutableMapping[int, tuple[str, int, str]]):
         token, owner_id, display_name = value
         self._store.put(
             int(user_id),
-            QuestionStartContext(
-                token=str(token),
-                owner_id=int(owner_id),
-                display_name=str(display_name),
-            ),
+            QuestionStartContext(str(token), int(owner_id), str(display_name)),
         )
 
     def __delitem__(self, user_id: int) -> None:
-        context = self._store.pop(int(user_id))
-        if context is None:
+        if self._store.pop(int(user_id)) is None:
             raise KeyError(user_id)
 
     def __iter__(self) -> Iterator[int]:
@@ -53,15 +44,11 @@ class QuestionStartTargetMapping(MutableMapping[int, tuple[str, int, str]]):
 
     def get(self, user_id: int, default=None):
         context = self._store.get(int(user_id))
-        if context is None:
-            return default
-        return context.token, context.owner_id, context.display_name
+        return default if context is None else (context.token, context.owner_id, context.display_name)
 
     def pop(self, user_id: int, default=None):
         context = self._store.pop(int(user_id))
-        if context is None:
-            return default
-        return context.token, context.owner_id, context.display_name
+        return default if context is None else (context.token, context.owner_id, context.display_name)
 
 
 def install_question_services(
@@ -78,6 +65,10 @@ def install_question_services(
     )
     questions_module._question_start_targets = QuestionStartTargetMapping(store)
 
+    navigation = QuestionNavigation(page_size=int(questions_module.PAGE_SIZE))
+    questions_module._question_navigation = navigation
+    questions_module.PAGE_SIZE = navigation.page_size
+
     resolver = QuestionReceiverResolver(
         get_owner_by_id=questions_module.db.get_question_owner_by_id,
         get_question_by_public_id=questions_module.db.get_question_by_public_id,
@@ -91,15 +82,9 @@ def install_question_services(
         if not items:
             return None
         return questions_module.InlineKeyboardMarkup(
-            inline_keyboard=[
-                [
-                    questions_module.InlineKeyboardButton(
-                        text=item.text,
-                        callback_data=item.callback_data,
-                    )
-                ]
-                for item in items
-            ]
+            inline_keyboard=[[
+                questions_module.InlineKeyboardButton(text=item.text, callback_data=item.callback_data)
+            ] for item in items]
         )
 
     def answers_list_inline(rows):
@@ -107,15 +92,9 @@ def install_question_services(
         if not items:
             return None
         return questions_module.InlineKeyboardMarkup(
-            inline_keyboard=[
-                [
-                    questions_module.InlineKeyboardButton(
-                        text=item.text,
-                        callback_data=item.callback_data,
-                    )
-                ]
-                for item in items
-            ]
+            inline_keyboard=[[
+                questions_module.InlineKeyboardButton(text=item.text, callback_data=item.callback_data)
+            ] for item in items]
         )
 
     questions_module._resolve_question_receiver = resolve_question_receiver
