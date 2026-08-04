@@ -3,7 +3,15 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import Message
 
 from .shared import router
-from . import advertising, admin_overview_ui, commands, menus, questions
+from . import (
+    advertising,
+    admin_overview_ui,
+    commands,
+    commercial_daily_hub,
+    commercial_navigation_ui,
+    menus,
+    questions,
+)
 
 
 @router.message(F.text.in_({"💬 Чат", "🚀 Начать общение", "💬 Найти собеседника"}))
@@ -30,6 +38,16 @@ async def route_profile(message: Message, state: FSMContext) -> None:
 @router.message(F.text.in_({"🎁 Друзья", "🎁 Пригласить друга", "👥 Пригласить друга", "🔗 Пригласить друга"}))
 async def route_invite(message: Message, state: FSMContext) -> None:
     await commands.invite_friend(message, state)
+
+
+@router.message(F.text == "☀️ Мой день")
+async def route_daily_hub(message: Message) -> None:
+    await commercial_daily_hub.commercial_daily_message(message)
+
+
+@router.message(F.text == "✨ Ещё")
+async def route_more(message: Message) -> None:
+    await commercial_navigation_ui.commercial_more(message)
 
 
 @router.message(F.text.in_({"📣 Реклама", "📣 Разместить рекламу", "📣 Купить рекламу", "📢 Купить рекламу", "📢 Реклама в CASPER"}))
