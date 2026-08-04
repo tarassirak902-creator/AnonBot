@@ -17,13 +17,16 @@ def _admin_ops_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
         [
             InlineKeyboardButton(text="🔄 Обновить", callback_data="admin_ops_refresh"),
+            InlineKeyboardButton(text="🩺 Здоровье", callback_data="admin_platform_health"),
+        ],
+        [
             InlineKeyboardButton(text="📈 Удержание", callback_data="admin_retention_dashboard"),
+            InlineKeyboardButton(text="🚨 Жалобы", callback_data="admin_complaints_dashboard"),
         ],
         [
             InlineKeyboardButton(text="👥 Пользователи", callback_data="admin_user_search"),
-            InlineKeyboardButton(text="🚨 Жалобы", callback_data="admin_complaints_dashboard"),
+            InlineKeyboardButton(text="📨 Рассылка", callback_data="admin_broadcast"),
         ],
-        [InlineKeyboardButton(text="📨 Рассылка", callback_data="admin_broadcast")],
         [InlineKeyboardButton(text="⬅️ Админка", callback_data="admin_back_to_panel")],
     ])
 
@@ -51,10 +54,10 @@ async def _admin_ops_text() -> str:
             )),
             section("Безопасность", (
                 metric("🚨", "Жалоб всего", stats["complaints"]),
-                "При росте негативных оценок проверьте жалобы и очередь.",
+                "При росте негативных оценок проверьте жалобы и здоровье платформы.",
             )),
         ),
-        footer="Удержание и конверсия в диалог доступны отдельной кнопкой.",
+        footer="Технические аномалии доступны в разделе «Здоровье».",
     )
 
 
