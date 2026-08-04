@@ -36,6 +36,7 @@ from . import admin_overview_ui
 from . import platform_dashboard_ui
 from . import history_moderation_ui
 from . import engagement_ui
+from . import activity_health_ui
 from . import admin_lists_ui
 from . import admin_confirmation_ui
 from . import admin_warning_ui
