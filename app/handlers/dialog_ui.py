@@ -18,14 +18,12 @@ from .shared import (
     notify_pending_question_activity,
     reveal_offer_kb,
     router,
-    send_ads_to_dialog_users,
     send_brand_card,
     start_searching,
 )
 
 
 async def _finish_dialog(message: Message, *, find_next: bool) -> None:
-    await cancel_search_timer(message.from_user.id) if False else None
     user_id = message.from_user.id
     cancel_search_timer(user_id)
 
@@ -89,6 +87,8 @@ async def _finish_dialog(message: Message, *, find_next: bool) -> None:
     )
 
     try:
+        from .advertising import send_ads_to_dialog_users
+
         await send_ads_to_dialog_users(
             message.bot,
             user_id,
