@@ -27,7 +27,6 @@ def _safe_int(value, default: int = 0) -> int:
 
 
 async def _safe_reputation(user_id: int) -> dict:
-    """Do not make the whole profile depend on a freshly migrated table."""
     try:
         reputation = await db.get_reputation(user_id)
     except Exception:
@@ -52,10 +51,7 @@ def get_profile_keyboard(is_vip: bool) -> InlineKeyboardMarkup:
     vip_btn_text = "👑 Управление VIP" if is_vip else "👑 Подключить VIP"
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="🎁 Забрать бонус", callback_data="profile_daily_reward")],
-        [
-            InlineKeyboardButton(text="🎯 Интересы", callback_data="community_preferences"),
-            InlineKeyboardButton(text="🤝 Контакты", callback_data="community_connections"),
-        ],
+        [InlineKeyboardButton(text="🤝 Контакты", callback_data="community_connections")],
         [InlineKeyboardButton(text="🏆 Мои достижения", callback_data="profile_achievements")],
         [
             InlineKeyboardButton(text="⭐ Баланс и вывод", callback_data="profile_withdraw"),
@@ -135,7 +131,7 @@ async def build_profile_screen(user_id: int) -> tuple[str, InlineKeyboardMarkup]
                 metric("🚨", "Предупреждений", f"{warnings_count}/3"),
             )),
         ),
-        footer="Настрой интересы и язык — поиск станет точнее.",
+        footer="Контакты появляются только после взаимного согласия.",
     )
     return text, get_profile_keyboard(is_vip)
 
