@@ -10,7 +10,7 @@ from app import database as db
 from app.core import config
 from app.core.deep_link_middleware import QuestionDeepLinkMiddleware
 from app.core.logging_config import setup_logging
-from app.core.middlewares import AntiFloodMiddleware
+from app.core.middlewares import AntiFloodMiddleware, UpdateObservabilityMiddleware
 from app.core.payment_middleware import PaymentIdempotencyMiddleware
 from app.handlers import router
 from app.services.background import create_background_tasks, stop_background_tasks
@@ -36,6 +36,9 @@ async def main() -> None:
     await bot.set_chat_menu_button(menu_button=MenuButtonCommands())
 
     dispatcher = Dispatcher()
+    observability = UpdateObservabilityMiddleware(callback_ttl=3.0)
+    dispatcher.message.outer_middleware(observability)
+    dispatcher.callback_query.outer_middleware(observability)
     dispatcher.message.outer_middleware(QuestionDeepLinkMiddleware())
     dispatcher.message.outer_middleware(PaymentIdempotencyMiddleware())
     dispatcher.message.outer_middleware(AntiFloodMiddleware(slow_mode_delay=0.25))
