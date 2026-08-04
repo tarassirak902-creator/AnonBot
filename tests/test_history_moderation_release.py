@@ -11,9 +11,11 @@ def test_history_and_moderation_module_is_registered() -> None:
 
 
 def test_profile_has_dialog_history_button() -> None:
-    source = Path("app/handlers/profile_view.py").read_text(encoding="utf-8")
-    assert "🕘 История" in source
-    assert 'callback_data="community_dialog_history"' in source
+    profile = Path("app/handlers/profile_view.py").read_text(encoding="utf-8")
+    hub = Path("app/handlers/profile_action_entry.py").read_text(encoding="utf-8")
+    assert 'callback_data="profile_hub_activity"' in profile
+    assert "🕘 История" in hub
+    assert 'callback_data="community_dialog_history"' in hub
 
 
 def test_complaint_review_queue_is_non_destructive() -> None:
