@@ -4,6 +4,7 @@ Services coordinate temporary state and domain workflows without depending on
 Telegram handlers or direct database details.
 """
 
+from .question_handler_bridge import QuestionModuleRuntime, initialize_question_module
 from .question_navigation import Page, QuestionNavigation
 from .question_presentation import (
     QuestionListItem,
@@ -18,6 +19,7 @@ from .question_start_context import QuestionStartContext, QuestionStartContextSt
 __all__ = [
     "Page",
     "QuestionListItem",
+    "QuestionModuleRuntime",
     "QuestionNavigation",
     "QuestionReceiverResolver",
     "QuestionStartContext",
@@ -26,4 +28,5 @@ __all__ = [
     "build_question_list_items",
     "display_owner_name",
     "format_question_timestamp",
+    "initialize_question_module",
 ]
