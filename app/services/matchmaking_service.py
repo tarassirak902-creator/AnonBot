@@ -52,14 +52,16 @@ async def recover_matchmaking_state(
     stale_queue_after: timedelta = timedelta(hours=6),
 ) -> int:
     """Repair transient matchmaking state without touching user history."""
-    cutoff = (datetime.now(timezone.utc) - stale_queue_after).isoformat()
+    cutoff = (datetime.now(timezone.utc) - stale_queue_after).strftime(
+        "%Y-%m-%d %H:%M:%S"
+    )
     async with aiosqlite.connect(DB_PATH, timeout=15) as conn:
         await conn.execute("PRAGMA busy_timeout=10000")
         await conn.execute("BEGIN IMMEDIATE")
         repaired = await _repair_active_chats(conn)
         if await _table_exists(conn, "queues"):
             cursor = await conn.execute(
-                "DELETE FROM queues WHERE created_at IS NOT NULL AND created_at<?",
+                "DELETE FROM queues WHERE created_at IS NOT NULL AND datetime(created_at)<datetime(?)",
                 (cutoff,),
             )
             repaired += max(0, int(cursor.rowcount or 0))
