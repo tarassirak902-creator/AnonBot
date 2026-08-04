@@ -16,21 +16,21 @@ def _inline(rows) -> InlineKeyboardMarkup:
 
 def main_menu(is_admin: bool = False) -> ReplyKeyboardMarkup:
     rows = [
-        [KeyboardButton(text="💬 Найти собеседника")],
-        [KeyboardButton(text="❓ Вопросы"), KeyboardButton(text="🎮 Мини-игры")],
-        [KeyboardButton(text="👤 Моя анкета"), KeyboardButton(text="👥 Пригласить друга")],
-        [KeyboardButton(text="⚙️ Админ-панель CASPER" if is_admin else "📢 Реклама в CASPER")],
+        [KeyboardButton(text="🚀 Начать общение")],
+        [KeyboardButton(text="❓ Анонимные вопросы"), KeyboardButton(text="🎮 Игры")],
+        [KeyboardButton(text="👤 Профиль"), KeyboardButton(text="🎁 Пригласить друга")],
+        [KeyboardButton(text="⚙️ Панель управления" if is_admin else "📣 Разместить рекламу")],
     ]
     return _reply(rows)
 
 
 def main_menu_with_question(display_name: str, is_admin: bool = False) -> ReplyKeyboardMarkup:
     rows = [
-        [KeyboardButton(text=f"❓ Задать анонимный вопрос {display_name}")],
-        [KeyboardButton(text="💬 Найти собеседника")],
-        [KeyboardButton(text="❓ Вопросы"), KeyboardButton(text="🎮 Мини-игры")],
-        [KeyboardButton(text="👤 Моя анкета"), KeyboardButton(text="👥 Пригласить друга")],
-        [KeyboardButton(text="⚙️ Админ-панель CASPER" if is_admin else "📢 Реклама в CASPER")],
+        [KeyboardButton(text=f"❓ Написать {display_name} анонимно")],
+        [KeyboardButton(text="🚀 Начать общение")],
+        [KeyboardButton(text="❓ Анонимные вопросы"), KeyboardButton(text="🎮 Игры")],
+        [KeyboardButton(text="👤 Профиль"), KeyboardButton(text="🎁 Пригласить друга")],
+        [KeyboardButton(text="⚙️ Панель управления" if is_admin else "📣 Разместить рекламу")],
     ]
     return _reply(rows)
 
