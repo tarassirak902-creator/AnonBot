@@ -7,6 +7,9 @@ from app.services.profile_insights import (
 )
 
 
+PROFILE_TITLE = "👤 Мой профиль"
+
+
 def get_profile_keyboard(is_vip: bool) -> InlineKeyboardMarkup:
     vip_btn_text = "👑 Управление VIP" if is_vip else "👑 Подключить VIP"
     return InlineKeyboardMarkup(inline_keyboard=[
@@ -52,7 +55,7 @@ async def build_profile_screen(user_id: int) -> tuple[str, InlineKeyboardMarkup]
     status_line = "👑 VIP" if is_vip else "🌙 Обычный"
     rating_text = f"{reputation['score']:+.1f}%" if reputation['total'] else "нет оценок"
     text = screen(
-        "👤 Профиль",
+        PROFILE_TITLE,
         intro=(
             f"<b>{identity}</b>\n"
             f"{status_line} · ⭐ <b>{stars_balance}</b> · 🏆 <b>{unlocked}/{total}</b>"
