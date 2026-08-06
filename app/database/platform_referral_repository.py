@@ -16,6 +16,14 @@ class ReferralActivation:
     reward_claimed: bool
 
 
+@dataclass(frozen=True)
+class ReferralSummary:
+    registered: int
+    activated: int
+    rewarded: int
+    pending_rewards: int
+
+
 async def _ensure_schema(db: aiosqlite.Connection) -> None:
     await db.executescript(
         """
@@ -80,6 +88,23 @@ async def claim_referral_reward(inviter_id: int, invited_id: int) -> bool:
         )
         await db.commit()
         return cur.rowcount == 1
+
+
+async def get_referral_summary(inviter_id: int) -> ReferralSummary:
+    async with aiosqlite.connect(DB_PATH, timeout=10) as db:
+        await _ensure_schema(db)
+        row = await (await db.execute(
+            """SELECT
+                   COUNT(*),
+                   SUM(CASE WHEN activated_at IS NOT NULL THEN 1 ELSE 0 END),
+                   SUM(CASE WHEN reward_claimed = 1 THEN 1 ELSE 0 END),
+                   SUM(CASE WHEN activated_at IS NOT NULL AND reward_claimed = 0 THEN 1 ELSE 0 END)
+               FROM referral_activations
+               WHERE inviter_id = ?""",
+            (inviter_id,),
+        )).fetchone()
+    values = row or (0, 0, 0, 0)
+    return ReferralSummary(*(int(value or 0) for value in values))
 
 
 async def referral_metrics() -> dict[str, int]:
