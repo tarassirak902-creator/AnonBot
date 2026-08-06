@@ -36,9 +36,10 @@ def _daily_keyboard() -> InlineKeyboardMarkup:
             InlineKeyboardButton(text="🎯 Задания", callback_data="engagement_missions"),
         ],
         [
+            InlineKeyboardButton(text="🚀 Рост", callback_data="growth_center"),
             InlineKeyboardButton(text="🎪 Событие", callback_data="weekly_event_hub"),
-            InlineKeyboardButton(text="👤 Профиль", callback_data="profile_refresh"),
         ],
+        [InlineKeyboardButton(text="👤 Профиль", callback_data="profile_refresh")],
         [InlineKeyboardButton(text="🔄 Обновить", callback_data="commercial_daily_hub")],
         [InlineKeyboardButton(text="✖️ Закрыть", callback_data="service_message_delete")],
     ])
@@ -79,13 +80,14 @@ async def commercial_daily_hub(callback: CallbackQuery) -> None:
 def _admin_pulse_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
         [
+            InlineKeyboardButton(text="🚀 Рост", callback_data="admin_growth_operations"),
             InlineKeyboardButton(text="📡 Операции", callback_data="admin_ops_dashboard"),
-            InlineKeyboardButton(text="🩺 Система", callback_data="admin_platform_health"),
         ],
         [
+            InlineKeyboardButton(text="🩺 Система", callback_data="admin_platform_health"),
             InlineKeyboardButton(text="🚨 Жалобы", callback_data="admin_complaints_dashboard"),
-            InlineKeyboardButton(text="📈 Аналитика", callback_data="admin_retention_dashboard"),
         ],
+        [InlineKeyboardButton(text="📈 Аналитика", callback_data="admin_retention_dashboard")],
         [InlineKeyboardButton(text="🧾 Журнал", callback_data="admin_audit_journal")],
         [InlineKeyboardButton(text="⬅️ Управление", callback_data="admin_commercial_hub")],
     ])
