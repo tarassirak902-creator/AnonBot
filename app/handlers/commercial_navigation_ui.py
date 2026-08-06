@@ -9,7 +9,10 @@ from .shared import ADMIN_IDS, router
 
 def _more_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="☀️ Мой день", callback_data="commercial_daily_hub")],
+        [
+            InlineKeyboardButton(text="☀️ Мой день", callback_data="commercial_daily_hub"),
+            InlineKeyboardButton(text="🌐 Сообщество", callback_data="platform_community"),
+        ],
         [
             InlineKeyboardButton(text="📢 Новости", url=f"https://t.me/{NEWS_CHANNEL_USERNAME}"),
             InlineKeyboardButton(text="🛟 Поддержка", url=f"https://t.me/{SUPPORT_USERNAME}"),
@@ -46,7 +49,7 @@ def _admin_sections_keyboard() -> InlineKeyboardMarkup:
 @router.message(F.text == "✨ Ещё")
 async def commercial_more(message: Message) -> None:
     await message.answer(
-        "<b>✨ Ещё</b>\n\nНовости, поддержка, реклама и информация о сервисе — в одном месте.",
+        "<b>✨ Ещё</b>\n\nСообщество, новости, поддержка и информация о сервисе — в одном месте.",
         parse_mode="HTML",
         reply_markup=_more_keyboard(),
     )
@@ -70,7 +73,7 @@ async def commercial_ads_info(callback: CallbackQuery) -> None:
 async def commercial_more_back(callback: CallbackQuery) -> None:
     await callback.answer()
     await callback.message.edit_text(
-        "<b>✨ Ещё</b>\n\nНовости, поддержка, реклама и информация о сервисе — в одном месте.",
+        "<b>✨ Ещё</b>\n\nСообщество, новости, поддержка и информация о сервисе — в одном месте.",
         parse_mode="HTML",
         reply_markup=_more_keyboard(),
     )
