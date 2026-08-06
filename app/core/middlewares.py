@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 class UpdateObservabilityMiddleware(BaseMiddleware):
-    """Log routed updates, suppress duplicate callbacks and contain handler errors."""
+    """Log routed updates without recording private message contents."""
 
     def __init__(self, callback_ttl: float = 3.0, cache_ttl: float = 600.0):
         if callback_ttl <= 0:
@@ -34,10 +34,14 @@ class UpdateObservabilityMiddleware(BaseMiddleware):
     @staticmethod
     def _route(event: TelegramObject) -> str:
         if isinstance(event, CallbackQuery):
-            return f"callback:{event.data or '-'}"
+            callback_name = (event.data or "-").split(":", 1)[0][:64]
+            return f"callback:{callback_name}"
         if isinstance(event, Message):
-            text = (event.text or event.caption or "").strip().replace("\n", " ")
-            return f"message:{text[:80] or event.content_type}"
+            content_type = str(event.content_type or "unknown")
+            payload = event.text if event.text is not None else event.caption
+            if payload is None:
+                return f"message:{content_type}"
+            return f"message:{content_type}:len={len(payload)}"
         return type(event).__name__
 
     async def __call__(
