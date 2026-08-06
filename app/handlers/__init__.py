@@ -45,6 +45,7 @@ from . import platform_automation_ui
 from . import platform_growth_ui
 from . import platform_referral_ui
 from . import platform_shop_ui
+from . import platform_progress_ui
 from . import navigation_fallback_ui
 # Unified admin and user entry screens must be registered before legacy handlers.
 from . import admin_overview_ui
