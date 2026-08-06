@@ -13,8 +13,8 @@ def _growth_keyboard(claimed: bool) -> InlineKeyboardMarkup:
         rows.append([InlineKeyboardButton(text="🎁 Забрать бонус", callback_data="growth_daily_claim")])
     rows += [
         [
-            InlineKeyboardButton(text="👥 Приглашения", callback_data="referral_stats"),
-            InlineKeyboardButton(text="🏪 Магазин", callback_data="profile_shop"),
+            InlineKeyboardButton(text="👥 Приглашения", callback_data="platform_referrals"),
+            InlineKeyboardButton(text="🏪 Магазин", callback_data="platform_shop"),
         ],
         [InlineKeyboardButton(text="🔄 Обновить", callback_data="growth_center")],
         [InlineKeyboardButton(text="⬅️ Мой день", callback_data="commercial_daily_hub")],
