@@ -6,5 +6,6 @@ from .duel_repository import *
 from .matchmaking_repository import *
 from .social_repository import *
 from .community_repository import *
+from .platform_social_repository import *
 # Imported last so the safe, versioned init_db facade shadows repository.init_db.
 from .schema_migrations import *
