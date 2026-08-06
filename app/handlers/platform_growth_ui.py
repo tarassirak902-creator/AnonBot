@@ -12,6 +12,7 @@ def _growth_keyboard(claimed: bool) -> InlineKeyboardMarkup:
     if not claimed:
         rows.append([InlineKeyboardButton(text="🎁 Забрать бонус", callback_data="growth_daily_claim")])
     rows += [
+        [InlineKeyboardButton(text="🏆 Прогресс", callback_data="progress_center")],
         [
             InlineKeyboardButton(text="👥 Приглашения", callback_data="platform_referrals"),
             InlineKeyboardButton(text="🏪 Магазин", callback_data="platform_shop"),
@@ -31,7 +32,7 @@ async def _growth_text(user_id: int) -> tuple[str, bool]:
         f"🏆 Лучшая серия: <b>{activity.best_streak} дн.</b>\n"
         f"Сегодняшний бонус: <b>{status}</b>\n"
         f"Следующая награда: <b>{activity.next_reward} ⭐</b>\n\n"
-        "Заходи каждый день, развивай серию и приглашай активных друзей."
+        "Заходи каждый день, развивай уровень и выполняй недельную цель."
     ), activity.claimed_today
 
 
@@ -55,7 +56,6 @@ async def growth_daily_claim(callback: CallbackQuery) -> None:
         try:
             await db.add_user_balance(callback.from_user.id, reward)
         except Exception:
-            # The claim remains recorded to prevent duplicate rewards; surface the issue to logs/admin.
             await callback.answer("Награда записана, баланс обновится после проверки", show_alert=True)
         else:
             await callback.answer(f"Получено {reward} ⭐")
@@ -68,6 +68,7 @@ async def growth_daily_claim(callback: CallbackQuery) -> None:
 
 def _admin_growth_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🏆 Прогресс", callback_data="admin_progress_metrics")],
         [
             InlineKeyboardButton(text="📈 Аналитика", callback_data="admin_retention_dashboard"),
             InlineKeyboardButton(text="💼 Бизнес", callback_data="admin_business_dashboard"),
