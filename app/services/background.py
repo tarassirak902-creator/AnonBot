@@ -11,6 +11,7 @@ from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 from app import database as db
 from app.core import texts
+from app.services.matchmaking_service import recover_matchmaking_state
 
 logger = logging.getLogger(__name__)
 
@@ -207,18 +208,23 @@ async def temporary_mute_expiration_loop(bot: Bot) -> None:
         await asyncio.sleep(60)
 
 
-async def stale_queue_cleanup_loop() -> None:
-    """Periodically removes abandoned users from the unified search queue."""
+async def matchmaking_recovery_loop() -> None:
+    """Periodically repairs only transient matchmaking state."""
     while True:
         try:
-            removed = await db.remove_stale_queue_entries(max_age_seconds=360)
-            if removed:
-                logger.info("Удалено зависших записей очереди: %s", removed)
+            repaired = await recover_matchmaking_state()
+            if repaired:
+                logger.warning("Автовосстановление матчинга исправило строк: %s", repaired)
+                try:
+                    await db.log_action(0, "matchmaking_auto_recovery", f"rows={repaired}")
+                except Exception:
+                    logger.exception("Не удалось записать recovery-событие")
         except asyncio.CancelledError:
             raise
         except Exception:
-            logger.exception("Ошибка очистки зависшей очереди")
-        await asyncio.sleep(30)
+            logger.exception("Ошибка автоматического восстановления матчинга")
+        await asyncio.sleep(60)
+
 
 def create_background_tasks(bot: Bot) -> list[asyncio.Task]:
     return [
@@ -226,7 +232,7 @@ def create_background_tasks(bot: Bot) -> list[asyncio.Task]:
         asyncio.create_task(referral_reward_loop(bot), name="referral_reward"),
         asyncio.create_task(vip_expiration_checker_loop(bot), name="vip_expiration"),
         asyncio.create_task(temporary_mute_expiration_loop(bot), name="temporary_mute_expiration"),
-        asyncio.create_task(stale_queue_cleanup_loop(), name="stale_queue_cleanup"),
+        asyncio.create_task(matchmaking_recovery_loop(), name="matchmaking_recovery"),
     ]
 
 

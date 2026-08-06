@@ -2,11 +2,13 @@
 from .shared import router, reset_inactivity_timer, cancel_search_timer
 from .minimal_keyboard_ui import install_minimal_keyboards
 from .keyboard_compat import install_keyboard_compat
+from .matchmaking_v2_adapter import install_matchmaking_v2
 
 # Canonical compact reply keyboards and compatibility hooks must be installed
 # before modules copy names from shared.
 install_minimal_keyboards()
 install_keyboard_compat()
+install_matchmaking_v2()
 
 from . import questions
 from app.services.question_handler_bridge import initialize_question_module
@@ -37,6 +39,8 @@ from . import events_audit_ui
 from . import commercial_profile_aliases
 from . import commercial_navigation_ui
 from . import commercial_daily_hub
+from . import platform_commercial_ui
+from . import navigation_fallback_ui
 # Unified admin and user entry screens must be registered before legacy handlers.
 from . import admin_overview_ui
 from . import platform_dashboard_ui

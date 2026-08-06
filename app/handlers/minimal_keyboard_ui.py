@@ -29,11 +29,12 @@ CHAT_LABELS = {
 
 
 def _reply(rows: list[list[KeyboardButton]]) -> ReplyKeyboardMarkup:
+    """Build a keyboard that stays available but can still be collapsed manually."""
     return ReplyKeyboardMarkup(
         keyboard=rows,
         resize_keyboard=True,
         one_time_keyboard=False,
-        is_persistent=False,
+        is_persistent=True,
         input_field_placeholder="Выберите раздел",
     )
 

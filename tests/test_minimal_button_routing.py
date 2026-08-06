@@ -37,9 +37,11 @@ def test_chat_menu_uses_compact_labels() -> None:
     assert all(len(label.split()) <= 2 for label in labels)
 
 
-def test_reply_keyboards_can_be_collapsed() -> None:
-    assert main_menu(False).is_persistent is False
-    assert chat_menu().is_persistent is False
+def test_reply_keyboards_stay_available_and_can_be_manually_collapsed() -> None:
+    for keyboard in (main_menu(False), chat_menu()):
+        assert keyboard.is_persistent is True
+        assert keyboard.one_time_keyboard is False
+        assert keyboard.resize_keyboard is True
 
 
 def test_every_compact_label_has_an_explicit_route() -> None:

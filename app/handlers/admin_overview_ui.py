@@ -12,6 +12,7 @@ from .shared import ADMIN_IDS, admin_panel, db, router, send_brand_card, safe_de
 
 def admin_users_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="💼 Бизнес", callback_data="admin_business_dashboard")],
         [InlineKeyboardButton(text="📡 Центр управления", callback_data="admin_ops_dashboard")],
         [InlineKeyboardButton(text="🔍 Найти пользователя", callback_data="admin_user_search")],
         [
@@ -32,6 +33,7 @@ def admin_home_text() -> str:
         ),
         sections=(
             section("Основное", (
+                "💼 Бизнес-показатели роста и монетизации",
                 "📡 Центр управления и оперативные показатели",
                 "👥 Пользователи и статистика",
                 "📨 Рассылки и рекламные кампании",
@@ -67,7 +69,7 @@ def admin_statistics_text(stats: dict) -> str:
                 metric("🎁", "Подарков всего", stats["total_gifts_sent"]),
             )),
         ),
-        footer="Ниже доступны центр управления, поиск, ограничения и выгрузка базы.",
+        footer="Ниже доступны бизнес-срез, центр управления, поиск и ограничения.",
     )
 
 

@@ -53,6 +53,7 @@ async def _safe_reputation(user_id: int) -> dict:
 
 def get_profile_keyboard(is_vip: bool) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🚀 Статус", callback_data="profile_platform_status")],
         [
             InlineKeyboardButton(text="⚡ Активность", callback_data="profile_hub_activity"),
             InlineKeyboardButton(text="🎁 Награды", callback_data="profile_hub_rewards"),
@@ -117,7 +118,7 @@ async def build_profile_screen(user_id: int) -> tuple[str, InlineKeyboardMarkup]
                 metric("🚨", "Предупреждений", f"{warnings_count}/3"),
             )),
         ),
-        footer="Все функции профиля собраны по разделам: активность, награды, социальное и премиум.",
+        footer="Откройте «Статус», чтобы увидеть коммерческий уровень, прогресс и привилегии.",
     )
     return text, get_profile_keyboard(is_vip)
 
