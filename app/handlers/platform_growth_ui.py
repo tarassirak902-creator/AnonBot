@@ -78,6 +78,7 @@ async def growth_daily_claim(callback: CallbackQuery) -> None:
 
 def _admin_growth_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🧠 Качество", callback_data="admin_match_quality")],
         [
             InlineKeyboardButton(text="🧭 План", callback_data="admin_personal_goals"),
             InlineKeyboardButton(text="🌙 Возврат", callback_data="admin_reactivation_metrics"),
