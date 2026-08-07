@@ -14,14 +14,14 @@ def _community_keyboard(unread: int) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="⭐ Репутация", callback_data="platform_reputation")],
         [InlineKeyboardButton(text=f"🔔 Уведомления{badge}", callback_data="platform_notifications")],
-        [InlineKeyboardButton(text="🤝 Контакты", callback_data="profile_social_contacts")],
-        [InlineKeyboardButton(text="⬅️ В профиль", callback_data="nav_profile_home")],
+        [InlineKeyboardButton(text="🤝 Контакты", callback_data="platform_community_contacts")],
+        [InlineKeyboardButton(text="⬅️ Ещё", callback_data="commercial_more_back")],
     ])
 
 
 def _back_keyboard(callback_data: str = "platform_community") -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="⬅️ Назад", callback_data=callback_data)],
+        [InlineKeyboardButton(text="⬅️ Сообщество", callback_data=callback_data)],
         [InlineKeyboardButton(text="🏠 Главное меню", callback_data="nav_main_menu")],
     ])
 
@@ -93,7 +93,7 @@ async def notifications_callback(callback: CallbackQuery) -> None:
         body = "\n\n".join(lines)
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="✅ Прочитать всё", callback_data="platform_notifications_read")],
-        [InlineKeyboardButton(text="⬅️ Назад", callback_data="platform_community")],
+        [InlineKeyboardButton(text="⬅️ Сообщество", callback_data="platform_community")],
     ])
     await callback.message.edit_text(
         f"<b>🔔 Уведомления</b>\n\n{body}",

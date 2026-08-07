@@ -13,22 +13,34 @@ from app.services.platform_insights import (
 from .shared import ADMIN_IDS, router
 
 
-def _admin_ops_keyboard() -> InlineKeyboardMarkup:
+def _admin_ops_keyboard(*, parent: str = "admin") -> InlineKeyboardMarkup:
+    if parent == "growth":
+        refresh = "admin_ops_from_growth"
+        back_callback, back_label = "admin_growth_operations", "⬅️ Growth"
+        health_callback = "admin_platform_health_from_ops_growth"
+        retention_callback = "admin_retention_from_ops_growth"
+        audit_callback = "admin_audit_from_ops_growth"
+    else:
+        refresh = "admin_ops_refresh"
+        back_callback, back_label = "admin_back_to_panel", "⬅️ Админка"
+        health_callback = "admin_platform_health_from_ops"
+        retention_callback = "admin_retention_from_ops"
+        audit_callback = "admin_audit_from_ops"
     return InlineKeyboardMarkup(inline_keyboard=[
         [
-            InlineKeyboardButton(text="🔄 Обновить", callback_data="admin_ops_refresh"),
-            InlineKeyboardButton(text="🩺 Здоровье", callback_data="admin_platform_health"),
+            InlineKeyboardButton(text="🔄 Обновить", callback_data=refresh),
+            InlineKeyboardButton(text="🩺 Здоровье", callback_data=health_callback),
         ],
         [
-            InlineKeyboardButton(text="📈 Удержание", callback_data="admin_retention_dashboard"),
-            InlineKeyboardButton(text="🧾 Журнал", callback_data="admin_audit_journal"),
+            InlineKeyboardButton(text="📈 Удержание", callback_data=retention_callback),
+            InlineKeyboardButton(text="🧾 Журнал", callback_data=audit_callback),
         ],
         [
             InlineKeyboardButton(text="🚨 Жалобы", callback_data="admin_complaints_dashboard"),
             InlineKeyboardButton(text="👥 Пользователи", callback_data="admin_user_search"),
         ],
         [InlineKeyboardButton(text="📨 Рассылка", callback_data="admin_broadcast")],
-        [InlineKeyboardButton(text="⬅️ Админка", callback_data="admin_back_to_panel")],
+        [InlineKeyboardButton(text=back_label, callback_data=back_callback)],
     ])
 
 
@@ -69,30 +81,36 @@ async def admin_operations_message(message: Message) -> None:
     await message.answer(await _admin_ops_text(), parse_mode="HTML", reply_markup=_admin_ops_keyboard())
 
 
-@router.callback_query(F.data.in_({"admin_ops_dashboard", "admin_ops_refresh"}))
+@router.callback_query(F.data.in_({"admin_ops_dashboard", "admin_ops_refresh", "admin_ops_from_growth"}))
 async def admin_operations_callback(callback: CallbackQuery) -> None:
     if callback.from_user.id not in ADMIN_IDS:
         return
-    await callback.answer("Обновлено" if callback.data == "admin_ops_refresh" else None)
+    parent = "growth" if callback.data == "admin_ops_from_growth" else "admin"
+    await callback.answer("Обновлено" if "refresh" in (callback.data or "") else None)
     await callback.message.edit_text(
-        await _admin_ops_text(), parse_mode="HTML", reply_markup=_admin_ops_keyboard()
+        await _admin_ops_text(),
+        parse_mode="HTML",
+        reply_markup=_admin_ops_keyboard(parent=parent),
     )
 
 
-def _contacts_keyboard(items: list[dict[str, object]]) -> InlineKeyboardMarkup:
+def _contacts_keyboard(items: list[dict[str, object]], *, parent: str = "social") -> InlineKeyboardMarkup:
     rows = []
     for item in items:
         rows.append([
             InlineKeyboardButton(
                 text=f"🗑 Удалить {item['label']}",
-                callback_data=f"community_contact_remove:{item['contact_id']}",
+                callback_data=f"community_contact_remove:{item['contact_id']}:{parent}",
             )
         ])
-    rows.append([InlineKeyboardButton(text="⬅️ Профиль", callback_data="profile_refresh")])
+    if parent == "community":
+        rows.append([InlineKeyboardButton(text="⬅️ Сообщество", callback_data="platform_community")])
+    else:
+        rows.append([InlineKeyboardButton(text="⬅️ Контакты", callback_data="community_connections")])
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
-async def _render_contacts(callback: CallbackQuery) -> None:
+async def _render_contacts(callback: CallbackQuery, *, parent: str = "social") -> None:
     items = await load_recent_anonymous_contacts(callback.from_user.id)
     if items:
         lines = [f"• <b>{item['label']}</b>" for item in items]
@@ -104,23 +122,31 @@ async def _render_contacts(callback: CallbackQuery) -> None:
         f"{body}\n\n"
         "Имена и Telegram-профили не раскрываются.",
         parse_mode="HTML",
-        reply_markup=_contacts_keyboard(items),
+        reply_markup=_contacts_keyboard(items, parent=parent),
     )
 
 
 @router.callback_query(F.data == "community_contacts_list")
 async def community_contacts_list(callback: CallbackQuery) -> None:
     await callback.answer()
-    await _render_contacts(callback)
+    await _render_contacts(callback, parent="social")
+
+
+@router.callback_query(F.data == "platform_community_contacts")
+async def platform_community_contacts(callback: CallbackQuery) -> None:
+    await callback.answer()
+    await _render_contacts(callback, parent="community")
 
 
 @router.callback_query(F.data.startswith("community_contact_remove:"))
 async def community_contact_remove(callback: CallbackQuery) -> None:
+    parts = (callback.data or "").split(":")
     try:
-        contact_id = int(callback.data.split(":", 1)[1])
-    except (TypeError, ValueError):
+        contact_id = int(parts[1])
+    except (IndexError, TypeError, ValueError):
         await callback.answer("Некорректный контакт", show_alert=True)
         return
+    parent = parts[2] if len(parts) > 2 and parts[2] in {"social", "community"} else "social"
     removed = await remove_anonymous_contact(callback.from_user.id, contact_id)
     await callback.answer("Контакт удалён" if removed else "Контакт уже удалён")
-    await _render_contacts(callback)
+    await _render_contacts(callback, parent=parent)

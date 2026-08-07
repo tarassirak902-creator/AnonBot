@@ -41,8 +41,8 @@ def test_community_routes_cover_reputation_notifications_and_navigation() -> Non
     assert callbacks == {
         "platform_reputation",
         "platform_notifications",
-        "profile_social_contacts",
-        "nav_profile_home",
+        "platform_community_contacts",
+        "commercial_more_back",
     }
 
 

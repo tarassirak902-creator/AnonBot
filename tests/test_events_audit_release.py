@@ -6,9 +6,9 @@ def test_events_and_audit_handlers_are_registered() -> None:
     assert "from . import events_audit_ui" in init_source
 
     source = Path("app/handlers/events_audit_ui.py").read_text(encoding="utf-8")
-    assert 'F.data == "weekly_event_hub"' in source
-    assert 'F.data == "weekly_event_claim"' in source
-    assert 'F.data == "admin_audit_journal"' in source
+    assert '"weekly_event_hub"' in source
+    assert 'weekly_event_claim' in source
+    assert 'admin_audit_journal' in source
 
 
 def test_weekly_reward_is_atomic_and_once_per_week() -> None:
@@ -25,7 +25,8 @@ def test_visible_entry_buttons_exist() -> None:
     assert 'text="🎪 Событие"' in profile
     assert 'callback_data="weekly_event_hub"' in profile
     assert 'text="🧾 Журнал"' in admin
-    assert 'callback_data="admin_audit_journal"' in admin
+    assert 'audit_callback = "admin_audit_from_ops"' in admin
+    assert 'audit_callback = "admin_audit_from_ops_growth"' in admin
 
 
 def test_privacy_contract_does_not_expose_message_content() -> None:

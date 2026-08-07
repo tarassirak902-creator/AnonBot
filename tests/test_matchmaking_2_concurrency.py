@@ -56,7 +56,8 @@ async def test_four_concurrent_users_form_two_reciprocal_pairs(tmp_path, monkeyp
 
 def test_admin_health_exposes_safe_matchmaking_recovery() -> None:
     source = Path("app/handlers/activity_health_ui.py").read_text(encoding="utf-8")
-    assert 'callback_data="admin_matchmaking_recover"' in source
+    assert 'admin_matchmaking_recover' in source
+    assert 'callback_data=f"admin_matchmaking_recover:{parent}"' in source
     assert "recover_matchmaking_state()" in source
     assert "admin_matchmaking_recovery" in source
     assert "История, покупки и контакты не затрагиваются" in source
