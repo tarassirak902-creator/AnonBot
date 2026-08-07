@@ -32,10 +32,6 @@ class ReactivationMetrics:
     max_gap_days: int
 
 
-def _day_key(today: date | None = None) -> str:
-    return (today or date.today()).isoformat()
-
-
 def _week_key(today: date | None = None) -> str:
     current = today or date.today()
     iso = current.isocalendar()
@@ -104,19 +100,26 @@ async def record_reactivation_visit(user_id: int, *, today: date | None = None) 
             "best_gap_days=excluded.best_gap_days, updated_at=CURRENT_TIMESTAMP",
             (user_id, current_key, comeback_count, best_gap),
         )
+        event_row = await (await db.execute(
+            "SELECT gap_days, previous_day FROM reactivation_events WHERE user_id=? AND return_day=?",
+            (user_id, current_key),
+        )).fetchone()
         reward_row = await (await db.execute(
             "SELECT 1 FROM reactivation_rewards WHERE user_id=? AND week_key=?",
             (user_id, week),
         )).fetchone()
         await db.commit()
     reward_claimed = bool(reward_row)
-    return ReactivationProfile(previous_day, days_away, comeback_count, best_gap, days_away >= COMEBACK_MIN_DAYS and not reward_claimed, reward_claimed)
+    event_gap = int(event_row[0]) if event_row else 0
+    event_previous = str(event_row[1]) if event_row else previous_day
+    return ReactivationProfile(event_previous, event_gap, comeback_count, best_gap, bool(event_row) and not reward_claimed, reward_claimed)
 
 
 async def get_reactivation_profile(user_id: int, *, today: date | None = None) -> ReactivationProfile:
     if user_id <= 0:
         return ReactivationProfile(None, 0, 0, 0, False, False)
     current = today or date.today()
+    current_key = current.isoformat()
     week = _week_key(current)
     async with aiosqlite.connect(DB_PATH, timeout=10) as db:
         await _ensure_schema(db)
@@ -124,15 +127,19 @@ async def get_reactivation_profile(user_id: int, *, today: date | None = None) -
             "SELECT last_seen_day, comeback_count, best_gap_days FROM reactivation_state WHERE user_id=?",
             (user_id,),
         )).fetchone()
+        event_row = await (await db.execute(
+            "SELECT gap_days, previous_day FROM reactivation_events WHERE user_id=? AND return_day=?",
+            (user_id, current_key),
+        )).fetchone()
         reward_row = await (await db.execute(
             "SELECT 1 FROM reactivation_rewards WHERE user_id=? AND week_key=?",
             (user_id, week),
         )).fetchone()
     if not row:
         return ReactivationProfile(None, 0, 0, 0, False, bool(reward_row))
-    last_seen = str(row[0])
-    days_away = max(0, (current - date.fromisoformat(last_seen)).days)
-    return ReactivationProfile(last_seen, days_away, int(row[1]), int(row[2]), days_away >= COMEBACK_MIN_DAYS and not reward_row, bool(reward_row))
+    last_seen = str(event_row[1]) if event_row else str(row[0])
+    gap = int(event_row[0]) if event_row else 0
+    return ReactivationProfile(last_seen, gap, int(row[1]), int(row[2]), bool(event_row) and not reward_row, bool(reward_row))
 
 
 async def claim_reactivation_reward(user_id: int, *, today: date | None = None) -> bool:
