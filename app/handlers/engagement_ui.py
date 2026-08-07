@@ -82,16 +82,23 @@ def _retention_keyboard(*, parent: str = "admin") -> InlineKeyboardMarkup:
     if parent == "growth":
         refresh = "admin_retention_from_growth"
         back_callback, back_label = "admin_growth_operations", "⬅️ Growth"
+        ops_callback = "admin_ops_from_growth"
+    elif parent == "ops_growth":
+        refresh = "admin_retention_from_ops_growth"
+        back_callback, back_label = "admin_ops_from_growth", "⬅️ Операции"
+        ops_callback = "admin_ops_from_growth"
     elif parent == "ops":
         refresh = "admin_retention_from_ops"
         back_callback, back_label = "admin_ops_dashboard", "⬅️ Операции"
+        ops_callback = "admin_ops_dashboard"
     else:
         refresh = "admin_retention_dashboard"
         back_callback, back_label = "admin_back_to_panel", "⬅️ Админка"
+        ops_callback = "admin_ops_dashboard"
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="🔄 Обновить", callback_data=refresh)],
         [
-            InlineKeyboardButton(text="📡 Центр", callback_data="admin_ops_dashboard"),
+            InlineKeyboardButton(text="📡 Центр", callback_data=ops_callback),
             InlineKeyboardButton(text="🚨 Жалобы", callback_data="admin_complaints_dashboard"),
         ],
         [InlineKeyboardButton(text=back_label, callback_data=back_callback)],
@@ -132,11 +139,19 @@ async def admin_retention_message(message: Message) -> None:
     await message.answer(await _retention_text(), parse_mode="HTML", reply_markup=_retention_keyboard())
 
 
-@router.callback_query(F.data.in_({"admin_retention_dashboard", "admin_retention_from_growth", "admin_retention_from_ops"}))
+@router.callback_query(F.data.in_({"admin_retention_dashboard", "admin_retention_from_growth", "admin_retention_from_ops", "admin_retention_from_ops_growth"}))
 async def admin_retention_dashboard(callback: CallbackQuery) -> None:
     if callback.from_user.id not in ADMIN_IDS:
         return
-    parent = "growth" if callback.data == "admin_retention_from_growth" else ("ops" if callback.data == "admin_retention_from_ops" else "admin")
+    route = callback.data or ""
+    if route == "admin_retention_from_growth":
+        parent = "growth"
+    elif route == "admin_retention_from_ops_growth":
+        parent = "ops_growth"
+    elif route == "admin_retention_from_ops":
+        parent = "ops"
+    else:
+        parent = "admin"
     await callback.answer("Обновлено")
     await callback.message.edit_text(
         await _retention_text(), parse_mode="HTML", reply_markup=_retention_keyboard(parent=parent)
