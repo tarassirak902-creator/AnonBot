@@ -3,6 +3,7 @@ from __future__ import annotations
 from aiogram import F
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
 
+from app.core.navigation import screen_back_button, screen_refresh_button
 from app.core.ui_copy import metric, screen, section
 from app.core.ui_renderer import render_callback, render_message
 from app.services.activity_health import load_platform_health, load_user_weekly_activity
@@ -19,9 +20,9 @@ def _activity_keyboard() -> InlineKeyboardMarkup:
         ],
         [
             InlineKeyboardButton(text="🤝 Контакты", callback_data="community_connections"),
-            InlineKeyboardButton(text="🔄 Обновить", callback_data="user_activity_center"),
+            screen_refresh_button("activity"),
         ],
-        [InlineKeyboardButton(text="⬅️ Активность", callback_data="profile_hub_activity")],
+        [screen_back_button("activity")],
     ])
 
 
