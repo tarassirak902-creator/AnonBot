@@ -6,7 +6,9 @@ def test_activity_and_health_handlers_are_registered() -> None:
     ui = Path("app/handlers/activity_health_ui.py").read_text(encoding="utf-8")
     assert "from . import activity_health_ui" in handlers
     assert 'F.data == "user_activity_center"' in ui
-    assert 'F.data == "admin_platform_health"' in ui
+    assert '"admin_platform_health"' in ui
+    assert '"admin_platform_health_from_growth"' in ui
+    assert '"admin_platform_health_from_ops"' in ui
 
 
 def test_profile_exposes_activity_center() -> None:
@@ -15,10 +17,11 @@ def test_profile_exposes_activity_center() -> None:
     assert 'callback_data="user_activity_center"' in source
 
 
-def test_admin_center_exposes_platform_health() -> None:
+def test_admin_center_exposes_contextual_platform_health() -> None:
     source = Path("app/handlers/platform_dashboard_ui.py").read_text(encoding="utf-8")
     assert "🩺 Здоровье" in source
-    assert 'callback_data="admin_platform_health"' in source
+    assert 'health_callback = "admin_platform_health_from_ops"' in source
+    assert 'health_callback = "admin_platform_health_from_ops_growth"' in source
 
 
 def test_health_service_detects_queue_and_chat_anomalies() -> None:
