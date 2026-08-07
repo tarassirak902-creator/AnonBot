@@ -36,6 +36,7 @@ from . import casper_game
 # Register guaranteed profile action entry points before feature and legacy callbacks.
 from . import profile_action_entry
 from . import events_audit_ui
+from . import navigation_integrity_ui
 from . import commercial_profile_aliases
 from . import commercial_navigation_ui
 from . import commercial_daily_hub
