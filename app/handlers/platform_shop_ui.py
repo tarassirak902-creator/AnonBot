@@ -13,7 +13,7 @@ _CATEGORIES = {
     "premium": ("👑 Premium", "Подписка и расширенные возможности аккаунта.", "profile_vip"),
     "gifts": ("🎁 Подарки", "Подарки и знаки внимания другим пользователям.", "profile_gifts"),
     "boosts": ("⭐ Бонусы", "Полезные усиления и временные преимущества.", "profile_shop"),
-    "seasonal": ("🎉 Сезонное", "Ограниченные предложения и коллекционные предметы.", "weekly_event_hub"),
+    "seasonal": ("🎉 Сезонное", "Ограниченные предложения и коллекционные предметы.", "weekly_event:shop"),
 }
 
 
@@ -62,7 +62,7 @@ async def shop_category(callback: CallbackQuery) -> None:
     title, description, target = category
     await record_product_event(callback.from_user.id, f"shop_category_{key}")
     kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="Открыть предложения", callback_data=target)],
+        [InlineKeyboardButton(text="🛍 Открыть", callback_data=target)],
         [InlineKeyboardButton(text="⬅️ Категории", callback_data="platform_shop")],
     ])
     await callback.answer()
