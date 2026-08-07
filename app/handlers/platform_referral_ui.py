@@ -3,6 +3,7 @@ from __future__ import annotations
 from aiogram import F
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
 
+from app.core.ui_renderer import render_message
 from app.database.platform_growth_repository import record_product_event
 from app.database.platform_personal_goals_repository import record_personal_goal_event
 from app.database.platform_referral_repository import get_referral_summary
@@ -32,7 +33,4 @@ async def platform_referrals(callback: CallbackQuery) -> None:
         "Друг становится активным после 5 завершённых диалогов. "
         "Каждое приглашение и награда учитываются только один раз."
     )
-    try:
-        await callback.message.edit_text(text, parse_mode="HTML", reply_markup=_referral_keyboard())
-    except Exception:
-        await callback.message.answer(text, parse_mode="HTML", reply_markup=_referral_keyboard())
+    await render_message(callback.message, text, reply_markup=_referral_keyboard())
