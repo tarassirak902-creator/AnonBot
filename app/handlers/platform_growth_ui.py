@@ -4,6 +4,7 @@ from aiogram import F
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
 
 from app.database.platform_growth_repository import claim_daily_activity, get_daily_activity, get_growth_metrics, record_product_event
+from app.database.platform_personal_goals_repository import record_personal_goal_event
 from .shared import ADMIN_IDS, db, router
 
 
@@ -12,6 +13,7 @@ def _growth_keyboard(claimed: bool) -> InlineKeyboardMarkup:
     if not claimed:
         rows.append([InlineKeyboardButton(text="🎁 Забрать бонус", callback_data="growth_daily_claim")])
     rows += [
+        [InlineKeyboardButton(text="🧭 План", callback_data="personal_goals")],
         [
             InlineKeyboardButton(text="🏆 Прогресс", callback_data="progress_center"),
             InlineKeyboardButton(text="🎯 Задания", callback_data="season_missions"),
@@ -35,7 +37,7 @@ async def _growth_text(user_id: int) -> tuple[str, bool]:
         f"🏆 Лучшая серия: <b>{activity.best_streak} дн.</b>\n"
         f"Сегодняшний бонус: <b>{status}</b>\n"
         f"Следующая награда: <b>{activity.next_reward} ⭐</b>\n\n"
-        "Заходи каждый день, развивай уровень и выполняй сезонные задания."
+        "Выполняй персональный план, развивай уровень и закрывай сезонные задания."
     ), activity.claimed_today
 
 
@@ -43,6 +45,7 @@ async def _growth_text(user_id: int) -> tuple[str, bool]:
 async def growth_center(callback: CallbackQuery) -> None:
     await callback.answer()
     await record_product_event(callback.from_user.id, "growth_center_open")
+    await record_personal_goal_event(callback.from_user.id, "growth_open")
     text, claimed = await _growth_text(callback.from_user.id)
     try:
         await callback.message.edit_text(text, parse_mode="HTML", reply_markup=_growth_keyboard(claimed))
@@ -61,6 +64,7 @@ async def growth_daily_claim(callback: CallbackQuery) -> None:
         except Exception:
             await callback.answer("Награда записана, баланс обновится после проверки", show_alert=True)
         else:
+            await record_personal_goal_event(callback.from_user.id, "daily_claim")
             await callback.answer(f"Получено {reward} ⭐")
     text, _ = await _growth_text(callback.from_user.id)
     try:
@@ -71,6 +75,7 @@ async def growth_daily_claim(callback: CallbackQuery) -> None:
 
 def _admin_growth_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🧭 План", callback_data="admin_personal_goals")],
         [
             InlineKeyboardButton(text="🏆 Прогресс", callback_data="admin_progress_metrics"),
             InlineKeyboardButton(text="🎯 Задания", callback_data="admin_mission_metrics"),
