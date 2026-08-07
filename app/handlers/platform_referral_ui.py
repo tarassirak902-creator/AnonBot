@@ -4,6 +4,7 @@ from aiogram import F
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
 
 from app.database.platform_growth_repository import record_product_event
+from app.database.platform_personal_goals_repository import record_personal_goal_event
 from app.database.platform_referral_repository import get_referral_summary
 from .shared import router
 
@@ -20,6 +21,7 @@ def _referral_keyboard() -> InlineKeyboardMarkup:
 async def platform_referrals(callback: CallbackQuery) -> None:
     await callback.answer()
     await record_product_event(callback.from_user.id, "referral_center_open")
+    await record_personal_goal_event(callback.from_user.id, "referral_open")
     summary = await get_referral_summary(callback.from_user.id)
     text = (
         "<b>👥 Приглашения</b>\n\n"
