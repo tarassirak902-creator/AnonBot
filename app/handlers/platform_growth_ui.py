@@ -3,6 +3,7 @@ from __future__ import annotations
 from aiogram import F
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
 
+from app.core.ui_renderer import render_message
 from app.database.platform_growth_repository import claim_daily_activity, get_daily_activity, get_growth_metrics, record_product_event
 from app.database.platform_personal_goals_repository import record_personal_goal_event
 from .shared import ADMIN_IDS, db, router
@@ -50,10 +51,7 @@ async def growth_center(callback: CallbackQuery) -> None:
     await record_product_event(callback.from_user.id, "growth_center_open")
     await record_personal_goal_event(callback.from_user.id, "growth_open")
     text, claimed = await _growth_text(callback.from_user.id)
-    try:
-        await callback.message.edit_text(text, parse_mode="HTML", reply_markup=_growth_keyboard(claimed))
-    except Exception:
-        await callback.message.answer(text, parse_mode="HTML", reply_markup=_growth_keyboard(claimed))
+    await render_message(callback.message, text, reply_markup=_growth_keyboard(claimed))
 
 
 @router.callback_query(F.data == "growth_daily_claim")
@@ -70,10 +68,7 @@ async def growth_daily_claim(callback: CallbackQuery) -> None:
             await record_personal_goal_event(callback.from_user.id, "daily_claim")
             await callback.answer(f"Получено {reward} ⭐")
     text, _ = await _growth_text(callback.from_user.id)
-    try:
-        await callback.message.edit_text(text, parse_mode="HTML", reply_markup=_growth_keyboard(activity.claimed_today))
-    except Exception:
-        pass
+    await render_message(callback.message, text, reply_markup=_growth_keyboard(activity.claimed_today))
 
 
 def _admin_growth_keyboard() -> InlineKeyboardMarkup:
@@ -117,7 +112,4 @@ async def admin_growth_operations(callback: CallbackQuery) -> None:
         "Метрики формируются без хранения содержимого сообщений."
     )
     await callback.answer("Обновлено")
-    try:
-        await callback.message.edit_text(text, parse_mode="HTML", reply_markup=_admin_growth_keyboard())
-    except Exception:
-        await callback.message.answer(text, parse_mode="HTML", reply_markup=_admin_growth_keyboard())
+    await render_message(callback.message, text, reply_markup=_admin_growth_keyboard())
