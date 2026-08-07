@@ -6,6 +6,7 @@ from aiogram import F
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
 
 from app import database as db
+from app.core.ui_renderer import render_message
 from .shared import router
 
 
@@ -26,7 +27,7 @@ def _back_keyboard(callback_data: str = "platform_community") -> InlineKeyboardM
     ])
 
 
-async def _render_community(target: Message, user_id: int, *, edit: bool = False) -> None:
+async def _community_text(user_id: int) -> tuple[str, InlineKeyboardMarkup]:
     unread = await db.unread_notification_count(user_id)
     reputation = await db.get_reputation_summary(user_id)
     text = (
@@ -36,10 +37,12 @@ async def _render_community(target: Message, user_id: int, *, edit: bool = False
         f"🔔 Новых уведомлений: <b>{unread}</b>\n\n"
         "Здесь собраны социальная активность, доверие и важные события аккаунта."
     )
-    if edit:
-        await target.edit_text(text, parse_mode="HTML", reply_markup=_community_keyboard(unread))
-    else:
-        await target.answer(text, parse_mode="HTML", reply_markup=_community_keyboard(unread))
+    return text, _community_keyboard(unread)
+
+
+async def _render_community(target: Message, user_id: int, *, edit: bool = False) -> None:
+    text, keyboard = await _community_text(user_id)
+    await render_message(target, text, reply_markup=keyboard, prefer_edit=edit)
 
 
 @router.message(F.text == "🌐 Сообщество")
@@ -63,7 +66,8 @@ async def reputation_callback(callback: CallbackQuery) -> None:
         badge = "✨ Хорошая репутация"
     else:
         badge = "🌱 Репутация формируется"
-    await callback.message.edit_text(
+    await render_message(
+        callback.message,
         "<b>⭐ Репутация</b>\n\n"
         f"{badge}\n\n"
         f"👍 Отлично: <b>{summary.positive}</b>\n"
@@ -71,15 +75,12 @@ async def reputation_callback(callback: CallbackQuery) -> None:
         f"👎 Не понравилось: <b>{summary.negative}</b>\n"
         f"📊 Положительных: <b>{summary.positive_percent}%</b>\n\n"
         "Оценки принимаются только после завершённых диалогов и не раскрывают личность автора.",
-        parse_mode="HTML",
         reply_markup=_back_keyboard(),
     )
 
 
-@router.callback_query(F.data == "platform_notifications")
-async def notifications_callback(callback: CallbackQuery) -> None:
-    await callback.answer()
-    items = await db.get_notifications(callback.from_user.id, 10)
+async def _notifications_screen(user_id: int) -> tuple[str, InlineKeyboardMarkup]:
+    items = await db.get_notifications(user_id, 10)
     if not items:
         body = "Пока нет уведомлений. Здесь появятся награды, достижения и системные события."
     else:
@@ -95,15 +96,19 @@ async def notifications_callback(callback: CallbackQuery) -> None:
         [InlineKeyboardButton(text="✅ Прочитать всё", callback_data="platform_notifications_read")],
         [InlineKeyboardButton(text="⬅️ Сообщество", callback_data="platform_community")],
     ])
-    await callback.message.edit_text(
-        f"<b>🔔 Уведомления</b>\n\n{body}",
-        parse_mode="HTML",
-        reply_markup=keyboard,
-    )
+    return f"<b>🔔 Уведомления</b>\n\n{body}", keyboard
+
+
+@router.callback_query(F.data == "platform_notifications")
+async def notifications_callback(callback: CallbackQuery) -> None:
+    await callback.answer()
+    text, keyboard = await _notifications_screen(callback.from_user.id)
+    await render_message(callback.message, text, reply_markup=keyboard)
 
 
 @router.callback_query(F.data == "platform_notifications_read")
 async def notifications_read_callback(callback: CallbackQuery) -> None:
     changed = await db.mark_notifications_read(callback.from_user.id)
     await callback.answer(f"Прочитано: {changed}")
-    await notifications_callback(callback)
+    text, keyboard = await _notifications_screen(callback.from_user.id)
+    await render_message(callback.message, text, reply_markup=keyboard)

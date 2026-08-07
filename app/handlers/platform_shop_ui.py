@@ -3,6 +3,7 @@ from __future__ import annotations
 from aiogram import F
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
 
+from app.core.ui_renderer import render_message
 from app.database.platform_growth_repository import acquire_action_slot, record_product_event
 from app.database.platform_personal_goals_repository import record_personal_goal_event
 from .shared import router
@@ -42,10 +43,7 @@ async def platform_shop(callback: CallbackQuery) -> None:
         "Выберите категорию. Покупки и переходы используют единые безопасные маршруты.\n\n"
         "⭐ Баланс и доступность товара проверяются непосредственно перед оплатой."
     )
-    try:
-        await callback.message.edit_text(text, parse_mode="HTML", reply_markup=_shop_keyboard())
-    except Exception:
-        await callback.message.answer(text, parse_mode="HTML", reply_markup=_shop_keyboard())
+    await render_message(callback.message, text, reply_markup=_shop_keyboard())
 
 
 @router.callback_query(F.data.startswith("shop_category:"))
@@ -67,7 +65,4 @@ async def shop_category(callback: CallbackQuery) -> None:
     ])
     await callback.answer()
     text = f"<b>{title}</b>\n\n{description}\n\nПеред покупкой бот повторно проверит цену, баланс и доступность."
-    try:
-        await callback.message.edit_text(text, parse_mode="HTML", reply_markup=kb)
-    except Exception:
-        await callback.message.answer(text, parse_mode="HTML", reply_markup=kb)
+    await render_message(callback.message, text, reply_markup=kb)
