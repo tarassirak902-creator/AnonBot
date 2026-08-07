@@ -3,6 +3,7 @@ from __future__ import annotations
 from aiogram import F
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
 
+from app.core.navigation import screen_back_button, screen_refresh_button
 from app.core.ui_renderer import render_message
 from app.database.platform_growth_repository import claim_daily_activity, get_daily_activity, get_growth_metrics, record_product_event
 from app.database.platform_personal_goals_repository import record_personal_goal_event
@@ -26,8 +27,8 @@ def _growth_keyboard(claimed: bool) -> InlineKeyboardMarkup:
             InlineKeyboardButton(text="👥 Приглашения", callback_data="platform_referrals"),
             InlineKeyboardButton(text="🏪 Магазин", callback_data="platform_shop"),
         ],
-        [InlineKeyboardButton(text="🔄 Обновить", callback_data="growth_center")],
-        [InlineKeyboardButton(text="⬅️ Мой день", callback_data="commercial_daily_hub")],
+        [screen_refresh_button("growth")],
+        [screen_back_button("growth")],
     ]
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
@@ -90,8 +91,8 @@ def _admin_growth_keyboard() -> InlineKeyboardMarkup:
             InlineKeyboardButton(text="📡 Операции", callback_data="admin_ops_from_growth"),
             InlineKeyboardButton(text="🩺 Система", callback_data="admin_platform_health_from_growth"),
         ],
-        [InlineKeyboardButton(text="🔄 Обновить", callback_data="admin_growth_operations")],
-        [InlineKeyboardButton(text="⬅️ Управление", callback_data="admin_commercial_hub")],
+        [screen_refresh_button("admin_growth")],
+        [screen_back_button("admin_growth")],
     ])
 
 

@@ -6,6 +6,7 @@ from aiogram import F
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
 
 from app import database as db
+from app.core.navigation import screen_back_button, screen_refresh_button
 from app.core.ui_renderer import render_message
 from .shared import router
 
@@ -16,13 +17,14 @@ def _community_keyboard(unread: int) -> InlineKeyboardMarkup:
         [InlineKeyboardButton(text="⭐ Репутация", callback_data="platform_reputation")],
         [InlineKeyboardButton(text=f"🔔 Уведомления{badge}", callback_data="platform_notifications")],
         [InlineKeyboardButton(text="🤝 Контакты", callback_data="platform_community_contacts")],
-        [InlineKeyboardButton(text="⬅️ Ещё", callback_data="commercial_more_back")],
+        [screen_refresh_button("community")],
+        [screen_back_button("community")],
     ])
 
 
-def _back_keyboard(callback_data: str = "platform_community") -> InlineKeyboardMarkup:
+def _back_keyboard(screen_name: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="⬅️ Сообщество", callback_data=callback_data)],
+        [screen_back_button(screen_name)],
         [InlineKeyboardButton(text="🏠 Главное меню", callback_data="nav_main_menu")],
     ])
 
@@ -75,7 +77,7 @@ async def reputation_callback(callback: CallbackQuery) -> None:
         f"👎 Не понравилось: <b>{summary.negative}</b>\n"
         f"📊 Положительных: <b>{summary.positive_percent}%</b>\n\n"
         "Оценки принимаются только после завершённых диалогов и не раскрывают личность автора.",
-        reply_markup=_back_keyboard(),
+        reply_markup=_back_keyboard("reputation"),
     )
 
 
@@ -94,7 +96,8 @@ async def _notifications_screen(user_id: int) -> tuple[str, InlineKeyboardMarkup
         body = "\n\n".join(lines)
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="✅ Прочитать всё", callback_data="platform_notifications_read")],
-        [InlineKeyboardButton(text="⬅️ Сообщество", callback_data="platform_community")],
+        [screen_refresh_button("notifications")],
+        [screen_back_button("notifications")],
     ])
     return f"<b>🔔 Уведомления</b>\n\n{body}", keyboard
 

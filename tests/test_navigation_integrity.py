@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from app.core.navigation import PARENTS, back_button, parent_target
+from app.core.navigation import PARENTS, back_button, parent_target, screen_contract
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -40,7 +40,8 @@ def test_profile_nested_screens_return_to_immediate_hubs() -> None:
     assert 'callback_data="profile_hub_activity"' in achievements
     assert 'text="⬅️ Награды", callback_data="profile_hub_rewards"' in activity
     assert 'text="⬅️ Социальное", callback_data="profile_hub_social"' in activity
-    assert 'text="⬅️ Ещё", callback_data="commercial_more_back"' in social
+    assert screen_contract("community").parent == "more"
+    assert 'screen_back_button("community")' in social
     assert 'callback_data="platform_community_contacts"' in social
     assert 'callback_data="platform_community"' in contacts
     assert 'callback_data="community_connections"' in contacts

@@ -42,6 +42,7 @@ def test_community_routes_cover_reputation_notifications_and_navigation() -> Non
         "platform_reputation",
         "platform_notifications",
         "platform_community_contacts",
+        "platform_community",
         "commercial_more_back",
     }
 
