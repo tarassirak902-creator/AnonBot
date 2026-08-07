@@ -4,6 +4,7 @@ from aiogram import F
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
 
 from app.core.ui_copy import metric, screen, section
+from app.core.ui_renderer import render_callback, render_message
 from app.services.engagement_service import (
     claim_daily_mission,
     load_daily_missions,
@@ -31,8 +32,8 @@ def _missions_keyboard(items: list[dict[str, object]]) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
-async def _render_missions(callback: CallbackQuery) -> None:
-    items = await load_daily_missions(callback.from_user.id)
+async def _mission_screen(user_id: int) -> tuple[str, InlineKeyboardMarkup]:
+    items = await load_daily_missions(user_id)
     lines = []
     for item in items:
         if item["claimed"]:
@@ -42,18 +43,26 @@ async def _render_missions(callback: CallbackQuery) -> None:
         else:
             status = f"⏳ {item['progress']}/{item['target']}"
         lines.append(f"• <b>{item['title']}</b> — {status} · {item['reward']} ⭐")
-    await callback.message.edit_text(
+    text = (
         "<b>🎯 Задания на сегодня</b>\n\n"
         + "\n".join(lines)
-        + "\n\nЗадания обновляются каждый день. Награда начисляется только один раз.",
-        parse_mode="HTML",
-        reply_markup=_missions_keyboard(items),
+        + "\n\nЗадания обновляются каждый день. Награда начисляется только один раз."
     )
+    return text, _missions_keyboard(items)
+
+
+async def _render_missions(callback: CallbackQuery, *, answer_text: str | None = None, show_alert: bool = False) -> None:
+    text, keyboard = await _mission_screen(callback.from_user.id)
+    if answer_text is None:
+        await render_callback(callback, text, reply_markup=keyboard)
+        return
+    await callback.answer(answer_text, show_alert=show_alert)
+    if callback.message is not None:
+        await render_message(callback.message, text, reply_markup=keyboard)
 
 
 @router.callback_query(F.data == "engagement_missions")
 async def engagement_missions(callback: CallbackQuery) -> None:
-    await callback.answer()
     await _render_missions(callback)
 
 
@@ -68,14 +77,18 @@ async def engagement_mission_claim(callback: CallbackQuery) -> None:
     result = await claim_daily_mission(callback.from_user.id, code)
     status = result["status"]
     if status == "ok":
-        await callback.answer(f"Начислено {result['reward']} ⭐", show_alert=True)
+        answer_text = f"Начислено {result['reward']} ⭐"
+        show_alert = True
     elif status == "incomplete":
-        await callback.answer("Сначала выполни задание", show_alert=True)
+        answer_text = "Сначала выполни задание"
+        show_alert = True
     elif status == "claimed":
-        await callback.answer("Награда уже получена")
+        answer_text = "Награда уже получена"
+        show_alert = False
     else:
-        await callback.answer("Задание не найдено", show_alert=True)
-    await _render_missions(callback)
+        answer_text = "Задание не найдено"
+        show_alert = True
+    await _render_missions(callback, answer_text=answer_text, show_alert=show_alert)
 
 
 def _retention_keyboard(*, parent: str = "admin") -> InlineKeyboardMarkup:
@@ -136,12 +149,18 @@ async def _retention_text() -> str:
 async def admin_retention_message(message: Message) -> None:
     if message.from_user.id not in ADMIN_IDS:
         return
-    await message.answer(await _retention_text(), parse_mode="HTML", reply_markup=_retention_keyboard())
+    await render_message(
+        message,
+        await _retention_text(),
+        reply_markup=_retention_keyboard(),
+        prefer_edit=False,
+    )
 
 
 @router.callback_query(F.data.in_({"admin_retention_dashboard", "admin_retention_from_growth", "admin_retention_from_ops", "admin_retention_from_ops_growth"}))
 async def admin_retention_dashboard(callback: CallbackQuery) -> None:
     if callback.from_user.id not in ADMIN_IDS:
+        await callback.answer("Недостаточно прав", show_alert=True)
         return
     route = callback.data or ""
     if route == "admin_retention_from_growth":
@@ -152,7 +171,9 @@ async def admin_retention_dashboard(callback: CallbackQuery) -> None:
         parent = "ops"
     else:
         parent = "admin"
-    await callback.answer("Обновлено")
-    await callback.message.edit_text(
-        await _retention_text(), parse_mode="HTML", reply_markup=_retention_keyboard(parent=parent)
+    await render_callback(
+        callback,
+        await _retention_text(),
+        reply_markup=_retention_keyboard(parent=parent),
+        answer_text="Обновлено",
     )
