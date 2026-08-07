@@ -14,8 +14,7 @@ def _progress_bar(progress: int) -> str:
     return "█" * filled + "░" * (10 - filled)
 
 
-@router.callback_query(F.data == "profile_platform_status")
-async def profile_platform_status(callback: CallbackQuery) -> None:
+async def _render_profile_status(callback: CallbackQuery, *, parent: str = "profile") -> None:
     data = await load_user_commercial_status(callback.from_user.id)
     vip = "Активен" if data["vip"] else "Не подключён"
     text = screen(
@@ -43,10 +42,30 @@ async def profile_platform_status(callback: CallbackQuery) -> None:
     await callback.message.edit_text(text, parse_mode="HTML", reply_markup=kb)
 
 
-@router.callback_query(F.data == "admin_business_dashboard")
+@router.callback_query(F.data == "profile_platform_status")
+async def profile_platform_status(callback: CallbackQuery) -> None:
+    await _render_profile_status(callback)
+
+
+def _business_keyboard(*, parent: str = "admin") -> InlineKeyboardMarkup:
+    if parent == "growth":
+        refresh = "admin_business_from_growth"
+        back_callback, back_label = "admin_growth_operations", "⬅️ Growth"
+    else:
+        refresh = "admin_business_dashboard"
+        back_callback, back_label = "admin_back_to_panel", "⬅️ Админка"
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🩺 Система", callback_data="admin_platform_health"), InlineKeyboardButton(text="📈 Аналитика", callback_data="admin_retention_dashboard")],
+        [InlineKeyboardButton(text="🔄 Обновить", callback_data=refresh)],
+        [InlineKeyboardButton(text=back_label, callback_data=back_callback)],
+    ])
+
+
+@router.callback_query(F.data.in_({"admin_business_dashboard", "admin_business_from_growth"}))
 async def admin_business_dashboard(callback: CallbackQuery) -> None:
     if callback.from_user.id not in ADMIN_IDS:
         return
+    parent = "growth" if callback.data == "admin_business_from_growth" else "admin"
     data = await load_business_metrics()
     activation = int(data["active_24h"] * 100 / max(1, data["users"]))
     vip_share = int(data["vip"] * 100 / max(1, data["users"]))
@@ -74,10 +93,5 @@ async def admin_business_dashboard(callback: CallbackQuery) -> None:
         ),
         footer="Метрики агрегированы. Содержимое переписки не используется.",
     )
-    kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🩺 Система", callback_data="admin_platform_health"), InlineKeyboardButton(text="📈 Аналитика", callback_data="admin_retention_dashboard")],
-        [InlineKeyboardButton(text="🔄 Обновить", callback_data="admin_business_dashboard")],
-        [InlineKeyboardButton(text="⬅️ Админка", callback_data="admin_back_to_panel")],
-    ])
     await callback.answer("Обновлено")
-    await callback.message.edit_text(text, parse_mode="HTML", reply_markup=kb)
+    await callback.message.edit_text(text, parse_mode="HTML", reply_markup=_business_keyboard(parent=parent))
