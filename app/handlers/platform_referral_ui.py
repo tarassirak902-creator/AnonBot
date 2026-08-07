@@ -11,7 +11,7 @@ from .shared import router
 
 def _referral_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🔗 Моя ссылка", callback_data="referral_stats")],
+        [InlineKeyboardButton(text="🔗 Моя ссылка", callback_data="referral_stats_growth")],
         [InlineKeyboardButton(text="🔄 Обновить", callback_data="platform_referrals")],
         [InlineKeyboardButton(text="⬅️ Центр роста", callback_data="growth_center")],
     ])
