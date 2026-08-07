@@ -3,6 +3,7 @@ from __future__ import annotations
 from aiogram import F
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
 
+from app.core.ui_renderer import render_callback, render_message
 from app.database.platform_growth_repository import record_product_event
 from app.database.platform_missions_repository import (
     MISSION_STAR_REWARD,
@@ -42,14 +43,10 @@ async def _mission_screen(user_id: int) -> tuple[str, bool]:
 
 @router.callback_query(F.data == "season_missions")
 async def season_missions(callback: CallbackQuery) -> None:
-    await callback.answer()
     await record_product_event(callback.from_user.id, "season_missions_open")
     await record_personal_goal_event(callback.from_user.id, "missions_open")
     text, can_claim = await _mission_screen(callback.from_user.id)
-    try:
-        await callback.message.edit_text(text, parse_mode="HTML", reply_markup=_mission_keyboard(can_claim))
-    except Exception:
-        await callback.message.answer(text, parse_mode="HTML", reply_markup=_mission_keyboard(can_claim))
+    await render_callback(callback, text, reply_markup=_mission_keyboard(can_claim))
 
 
 @router.callback_query(F.data == "mission_reward_claim")
@@ -66,10 +63,8 @@ async def mission_reward_claim(callback: CallbackQuery) -> None:
             await record_product_event(callback.from_user.id, "season_mission_reward")
             await callback.answer(f"Получено {MISSION_STAR_REWARD} ⭐ и {MISSION_XP_REWARD} XP")
     text, can_claim = await _mission_screen(callback.from_user.id)
-    try:
-        await callback.message.edit_text(text, parse_mode="HTML", reply_markup=_mission_keyboard(can_claim))
-    except Exception:
-        pass
+    if callback.message is not None:
+        await render_message(callback.message, text, reply_markup=_mission_keyboard(can_claim))
 
 
 @router.callback_query(F.data == "admin_mission_metrics")
@@ -90,8 +85,4 @@ async def admin_mission_metrics(callback: CallbackQuery) -> None:
         [InlineKeyboardButton(text="🔄 Обновить", callback_data="admin_mission_metrics")],
         [InlineKeyboardButton(text="⬅️ Рост", callback_data="admin_growth_operations")],
     ])
-    await callback.answer("Обновлено")
-    try:
-        await callback.message.edit_text(text, parse_mode="HTML", reply_markup=kb)
-    except Exception:
-        await callback.message.answer(text, parse_mode="HTML", reply_markup=kb)
+    await render_callback(callback, text, reply_markup=kb, answer_text="Обновлено")

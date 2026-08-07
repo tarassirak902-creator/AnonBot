@@ -5,6 +5,7 @@ from datetime import date
 from aiogram import F
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
 
+from app.core.ui_renderer import render_callback, render_message
 from app.database.platform_progress_repository import grant_xp_once
 from app.database.platform_reactivation_repository import (
     COMEBACK_REWARD_STARS,
@@ -64,12 +65,8 @@ async def _reactivation_screen(user_id: int, *, record_visit: bool) -> tuple[str
 
 @router.callback_query(F.data == "reactivation_center")
 async def reactivation_center(callback: CallbackQuery) -> None:
-    await callback.answer()
     text, can_claim = await _reactivation_screen(callback.from_user.id, record_visit=True)
-    try:
-        await callback.message.edit_text(text, parse_mode="HTML", reply_markup=_reactivation_keyboard(can_claim))
-    except Exception:
-        await callback.message.answer(text, parse_mode="HTML", reply_markup=_reactivation_keyboard(can_claim))
+    await render_callback(callback, text, reply_markup=_reactivation_keyboard(can_claim))
 
 
 @router.callback_query(F.data == "reactivation_claim")
@@ -91,10 +88,8 @@ async def reactivation_claim(callback: CallbackQuery) -> None:
         else:
             await callback.answer(f"Получено {COMEBACK_REWARD_STARS} ⭐ и {COMEBACK_REWARD_XP} XP")
     text, can_claim = await _reactivation_screen(callback.from_user.id, record_visit=False)
-    try:
-        await callback.message.edit_text(text, parse_mode="HTML", reply_markup=_reactivation_keyboard(can_claim))
-    except Exception:
-        pass
+    if callback.message is not None:
+        await render_message(callback.message, text, reply_markup=_reactivation_keyboard(can_claim))
 
 
 @router.callback_query(F.data == "admin_reactivation_metrics")
@@ -116,8 +111,4 @@ async def admin_reactivation_metrics(callback: CallbackQuery) -> None:
         [InlineKeyboardButton(text="🔄 Обновить", callback_data="admin_reactivation_metrics")],
         [InlineKeyboardButton(text="⬅️ Рост", callback_data="admin_growth_operations")],
     ])
-    await callback.answer("Обновлено")
-    try:
-        await callback.message.edit_text(text, parse_mode="HTML", reply_markup=kb)
-    except Exception:
-        await callback.message.answer(text, parse_mode="HTML", reply_markup=kb)
+    await render_callback(callback, text, reply_markup=kb, answer_text="Обновлено")

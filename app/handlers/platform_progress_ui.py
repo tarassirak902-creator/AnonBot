@@ -3,6 +3,7 @@ from __future__ import annotations
 from aiogram import F
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
 
+from app.core.ui_renderer import render_callback, render_message
 from app.database.platform_growth_repository import record_product_event
 from app.database.platform_progress_repository import (
     WEEKLY_REWARD,
@@ -42,13 +43,9 @@ async def _progress_screen(user_id: int) -> tuple[str, bool]:
 
 @router.callback_query(F.data == "progress_center")
 async def progress_center(callback: CallbackQuery) -> None:
-    await callback.answer()
     await record_product_event(callback.from_user.id, "progress_center_open")
     text, can_claim = await _progress_screen(callback.from_user.id)
-    try:
-        await callback.message.edit_text(text, parse_mode="HTML", reply_markup=_progress_keyboard(can_claim))
-    except Exception:
-        await callback.message.answer(text, parse_mode="HTML", reply_markup=_progress_keyboard(can_claim))
+    await render_callback(callback, text, reply_markup=_progress_keyboard(can_claim))
 
 
 @router.callback_query(F.data == "progress_weekly_claim")
@@ -65,10 +62,8 @@ async def progress_weekly_claim(callback: CallbackQuery) -> None:
             await record_product_event(callback.from_user.id, "weekly_reward_claim")
             await callback.answer(f"Получено {WEEKLY_REWARD} ⭐")
     text, can_claim = await _progress_screen(callback.from_user.id)
-    try:
-        await callback.message.edit_text(text, parse_mode="HTML", reply_markup=_progress_keyboard(can_claim))
-    except Exception:
-        pass
+    if callback.message is not None:
+        await render_message(callback.message, text, reply_markup=_progress_keyboard(can_claim))
 
 
 @router.callback_query(F.data == "admin_progress_metrics")
@@ -90,8 +85,4 @@ async def admin_progress_metrics(callback: CallbackQuery) -> None:
         [InlineKeyboardButton(text="🔄 Обновить", callback_data="admin_progress_metrics")],
         [InlineKeyboardButton(text="⬅️ Рост", callback_data="admin_growth_operations")],
     ])
-    await callback.answer("Обновлено")
-    try:
-        await callback.message.edit_text(text, parse_mode="HTML", reply_markup=kb)
-    except Exception:
-        await callback.message.answer(text, parse_mode="HTML", reply_markup=kb)
+    await render_callback(callback, text, reply_markup=kb, answer_text="Обновлено")
