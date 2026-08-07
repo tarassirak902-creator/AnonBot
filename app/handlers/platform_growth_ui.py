@@ -88,12 +88,12 @@ def _admin_growth_keyboard() -> InlineKeyboardMarkup:
             InlineKeyboardButton(text="🎯 Задания", callback_data="admin_mission_metrics"),
         ],
         [
-            InlineKeyboardButton(text="📈 Аналитика", callback_data="admin_retention_dashboard"),
-            InlineKeyboardButton(text="💼 Бизнес", callback_data="admin_business_dashboard"),
+            InlineKeyboardButton(text="📈 Аналитика", callback_data="admin_retention_from_growth"),
+            InlineKeyboardButton(text="💼 Бизнес", callback_data="admin_business_from_growth"),
         ],
         [
-            InlineKeyboardButton(text="📡 Операции", callback_data="admin_ops_dashboard"),
-            InlineKeyboardButton(text="🩺 Система", callback_data="admin_platform_health"),
+            InlineKeyboardButton(text="📡 Операции", callback_data="admin_ops_from_growth"),
+            InlineKeyboardButton(text="🩺 Система", callback_data="admin_platform_health_from_growth"),
         ],
         [InlineKeyboardButton(text="🔄 Обновить", callback_data="admin_growth_operations")],
         [InlineKeyboardButton(text="⬅️ Управление", callback_data="admin_commercial_hub")],
