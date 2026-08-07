@@ -6,7 +6,8 @@ def test_commercial_platform_routes_are_registered() -> None:
     ui_source = Path("app/handlers/platform_commercial_ui.py").read_text(encoding="utf-8")
     assert "from . import platform_commercial_ui" in init_source
     assert 'F.data == "profile_platform_status"' in ui_source
-    assert 'F.data == "admin_business_dashboard"' in ui_source
+    assert '"admin_business_dashboard"' in ui_source
+    assert '"admin_business_from_growth"' in ui_source
 
 
 def test_profile_and_admin_expose_unified_entries() -> None:
