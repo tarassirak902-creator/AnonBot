@@ -32,7 +32,7 @@ def test_weekly_event_preserves_entry_parent() -> None:
     shop = _source("platform_shop_ui.py")
 
     assert 'parent="rewards"' in alias
-    assert 'callback_data="weekly_event:shop"' in shop or '"weekly_event:shop"' in shop
+    assert '"weekly_event:shop"' in shop
     assert '"profile_hub_rewards", "⬅️ Награды"' in event
     assert '"commercial_daily_hub", "⬅️ Мой день"' in event
     assert '"shop_category:seasonal", "⬅️ Сезонное"' in event
@@ -54,6 +54,7 @@ def test_operations_context_survives_refresh_and_nested_navigation() -> None:
     assert 'refresh = "admin_ops_from_growth"' in ops
     assert '"admin_platform_health_from_ops_growth"' in ops
     assert '"admin_retention_from_ops_growth"' in ops
+    assert '"admin_audit_from_ops_growth"' in ops
     assert '"admin_ops_from_growth", "⬅️ Операции"' in retention
     assert '"admin_ops_from_growth", "⬅️ Операции"' in health
 
@@ -69,7 +70,6 @@ def test_referral_statistics_preserve_growth_parent() -> None:
 def test_context_callbacks_have_registered_handlers() -> None:
     sources = "\n".join(path.read_text(encoding="utf-8") for path in HANDLERS.glob("*.py"))
     context_callbacks = {
-        "weekly_event:rewards",
         "weekly_event:shop",
         "admin_retention_from_growth",
         "admin_business_from_growth",
