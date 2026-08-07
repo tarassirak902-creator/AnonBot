@@ -63,7 +63,15 @@ async def _weekly_progress(user_id: int) -> tuple[int, bool]:
     return min(progress, WEEKLY_TARGET), claimed
 
 
-async def _render_event(callback: CallbackQuery) -> None:
+def _event_parent(parent: str) -> tuple[str, str, str]:
+    if parent == "rewards":
+        return "profile_hub_rewards", "⬅️ Награды", "weekly_event:rewards"
+    if parent == "shop":
+        return "shop_category:seasonal", "⬅️ Сезонное", "weekly_event:shop"
+    return "commercial_daily_hub", "⬅️ Мой день", "weekly_event:daily"
+
+
+async def _render_event(callback: CallbackQuery, *, parent: str = "daily") -> None:
     progress, claimed = await _weekly_progress(callback.from_user.id)
     completed = progress >= WEEKLY_TARGET
     if claimed:
@@ -72,17 +80,18 @@ async def _render_event(callback: CallbackQuery) -> None:
         status = "🎁 Цель выполнена — забери награду"
     else:
         status = f"⏳ Прогресс: {progress}/{WEEKLY_TARGET}"
+    back_callback, back_label, refresh_callback = _event_parent(parent)
     rows: list[list[InlineKeyboardButton]] = []
     if completed and not claimed:
         rows.append([
             InlineKeyboardButton(
                 text=f"🎁 Забрать {WEEKLY_REWARD} ⭐",
-                callback_data="weekly_event_claim",
+                callback_data=f"weekly_event_claim:{parent}",
             )
         ])
     rows.extend([
-        [InlineKeyboardButton(text="🔄 Обновить", callback_data="weekly_event_hub")],
-        [InlineKeyboardButton(text="⬅️ Профиль", callback_data="profile_refresh")],
+        [InlineKeyboardButton(text="🔄 Обновить", callback_data=refresh_callback)],
+        [InlineKeyboardButton(text=back_label, callback_data=back_callback)],
     ])
     text = (
         "<b>🎪 Событие недели</b>\n\n"
@@ -92,27 +101,33 @@ async def _render_event(callback: CallbackQuery) -> None:
         "Учитывается только факт завершённого знакомства. Содержимое переписки не анализируется."
     )
     await callback.answer()
+    keyboard = InlineKeyboardMarkup(inline_keyboard=rows)
     try:
-        await callback.message.edit_text(
-            text,
-            parse_mode="HTML",
-            reply_markup=InlineKeyboardMarkup(inline_keyboard=rows),
-        )
+        await callback.message.edit_text(text, parse_mode="HTML", reply_markup=keyboard)
     except Exception:
-        await callback.message.answer(
-            text,
-            parse_mode="HTML",
-            reply_markup=InlineKeyboardMarkup(inline_keyboard=rows),
-        )
+        await callback.message.answer(text, parse_mode="HTML", reply_markup=keyboard)
 
 
-@router.callback_query(F.data == "weekly_event_hub")
+@router.callback_query(F.data.in_({"weekly_event_hub", "weekly_event:daily"}))
 async def weekly_event_hub(callback: CallbackQuery) -> None:
-    await _render_event(callback)
+    await _render_event(callback, parent="daily")
 
 
-@router.callback_query(F.data == "weekly_event_claim")
+@router.callback_query(F.data == "weekly_event:rewards")
+async def weekly_event_rewards(callback: CallbackQuery) -> None:
+    await _render_event(callback, parent="rewards")
+
+
+@router.callback_query(F.data == "weekly_event:shop")
+async def weekly_event_shop(callback: CallbackQuery) -> None:
+    await _render_event(callback, parent="shop")
+
+
+@router.callback_query(F.data.startswith("weekly_event_claim"))
 async def weekly_event_claim(callback: CallbackQuery) -> None:
+    parent = "daily"
+    if callback.data and ":" in callback.data:
+        parent = callback.data.split(":", 1)[1] or "daily"
     progress, _ = await _weekly_progress(callback.from_user.id)
     if progress < WEEKLY_TARGET:
         await callback.answer("Сначала выполни цель", show_alert=True)
@@ -140,7 +155,7 @@ async def weekly_event_claim(callback: CallbackQuery) -> None:
         else:
             await conn.rollback()
             await callback.answer("Награда уже получена")
-    await _render_event(callback)
+    await _render_event(callback, parent=parent)
 
 
 async def _audit_text() -> str:
@@ -183,11 +198,11 @@ async def _audit_text() -> str:
     )
 
 
-def _audit_keyboard() -> InlineKeyboardMarkup:
+def _audit_keyboard(back_callback: str = "admin_back_to_panel", back_label: str = "⬅️ Админка") -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="🔄 Обновить", callback_data="admin_audit_journal")],
         [InlineKeyboardButton(text="📡 Центр", callback_data="admin_ops_dashboard")],
-        [InlineKeyboardButton(text="⬅️ Админка", callback_data="admin_back_to_panel")],
+        [InlineKeyboardButton(text=back_label, callback_data=back_callback)],
     ])
 
 
@@ -198,13 +213,20 @@ async def admin_audit_message(message: Message) -> None:
     await message.answer(await _audit_text(), parse_mode="HTML", reply_markup=_audit_keyboard())
 
 
-@router.callback_query(F.data == "admin_audit_journal")
+@router.callback_query(F.data.in_({"admin_audit_journal", "admin_audit_from_growth", "admin_audit_from_ops"}))
 async def admin_audit_journal(callback: CallbackQuery) -> None:
     if callback.from_user.id not in ADMIN_IDS:
         return
+    if callback.data == "admin_audit_from_growth":
+        back_callback, back_label = "admin_growth_operations", "⬅️ Growth"
+    elif callback.data == "admin_audit_from_ops":
+        back_callback, back_label = "admin_ops_dashboard", "⬅️ Операции"
+    else:
+        back_callback, back_label = "admin_back_to_panel", "⬅️ Админка"
     await callback.answer("Обновлено")
     text = await _audit_text()
+    keyboard = _audit_keyboard(back_callback, back_label)
     try:
-        await callback.message.edit_text(text, parse_mode="HTML", reply_markup=_audit_keyboard())
+        await callback.message.edit_text(text, parse_mode="HTML", reply_markup=keyboard)
     except Exception:
-        await callback.message.answer(text, parse_mode="HTML", reply_markup=_audit_keyboard())
+        await callback.message.answer(text, parse_mode="HTML", reply_markup=keyboard)
