@@ -33,14 +33,10 @@ async def profile_achievements_handler(callback: CallbackQuery) -> None:
         sections=("\n\n".join(items),),
         footer="Выполняйте цели, чтобы открыть новые достижения.",
     )
-    from_activity = callback.data == "profile_achievements_from_activity"
-    refresh_callback = "profile_achievements_from_activity" if from_activity else "profile_achievements"
-    back_text = "⬅️ Активность" if from_activity else ButtonText.BACK
-    back_callback = "profile_hub_activity" if from_activity else "profile_refresh"
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [
-            InlineKeyboardButton(text=ButtonText.REFRESH, callback_data=refresh_callback),
-            InlineKeyboardButton(text=back_text, callback_data=back_callback),
+            InlineKeyboardButton(text=ButtonText.REFRESH, callback_data="profile_achievements_from_activity"),
+            InlineKeyboardButton(text="⬅️ Активность", callback_data="profile_hub_activity"),
         ],
     ])
 
