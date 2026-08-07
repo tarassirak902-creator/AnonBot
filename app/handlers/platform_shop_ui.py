@@ -4,6 +4,7 @@ from aiogram import F
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
 
 from app.database.platform_growth_repository import acquire_action_slot, record_product_event
+from app.database.platform_personal_goals_repository import record_personal_goal_event
 from .shared import router
 
 
@@ -35,6 +36,7 @@ def _shop_keyboard() -> InlineKeyboardMarkup:
 async def platform_shop(callback: CallbackQuery) -> None:
     await callback.answer()
     await record_product_event(callback.from_user.id, "shop_open")
+    await record_personal_goal_event(callback.from_user.id, "shop_open")
     text = (
         "<b>🏪 Магазин</b>\n\n"
         "Выберите категорию. Покупки и переходы используют единые безопасные маршруты.\n\n"
