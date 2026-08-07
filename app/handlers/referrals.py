@@ -1,4 +1,3 @@
-
 from .shared import *
 
 
@@ -20,11 +19,8 @@ def _achievement_lines(active_count: int) -> tuple[str, str]:
     return unlocked_text, next_text
 
 
-async def _referral_screen(bot, user_id: int) -> tuple[str, InlineKeyboardMarkup]:
-    _ref_link, share_url, stats = await prepare_referral_data(
-        bot,
-        user_id,
-    )
+async def _referral_screen(bot, user_id: int, *, parent: str = "invite") -> tuple[str, InlineKeyboardMarkup]:
+    _ref_link, share_url, stats = await prepare_referral_data(bot, user_id)
     unlocked, next_text = _achievement_lines(stats["active"])
     text = (
         "📊 <b>Статистика приглашений</b>\n\n"
@@ -38,16 +34,21 @@ async def _referral_screen(bot, user_id: int) -> tuple[str, InlineKeyboardMarkup
         f"{next_text}\n\n"
         "Друг считается активным после <b>5 завершённых диалогов</b>."
     )
+    if parent == "growth":
+        back_callback, back_label = "platform_referrals", "⬅️ Приглашения"
+    else:
+        back_callback, back_label = "referral_back_to_invite", "⬅️ Приглашение"
     kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="↩️ Назад", callback_data="referral_back_to_invite")],
+        [InlineKeyboardButton(text=back_label, callback_data=back_callback)],
     ])
     return text, kb
 
 
-@router.callback_query(F.data == "referral_stats")
+@router.callback_query(F.data.in_({"referral_stats", "referral_stats_growth"}))
 async def referral_stats(callback: CallbackQuery):
     await callback.answer()
-    text, kb = await _referral_screen(callback.bot, callback.from_user.id)
+    parent = "growth" if callback.data == "referral_stats_growth" else "invite"
+    text, kb = await _referral_screen(callback.bot, callback.from_user.id, parent=parent)
     await safe_delete_message(callback.message)
     await send_brand_card(callback.message, "invite", text, kb)
 
@@ -72,7 +73,7 @@ async def referral_back_to_invite(callback: CallbackQuery):
     )
     kb = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="📨 Пригласить друга", url=share_url)],
-        [InlineKeyboardButton(text="📊 Моя статистика приглашений", callback_data="referral_stats")],
-        [InlineKeyboardButton(text="↩️ Назад в главное меню", callback_data="nav_main_menu")],
+        [InlineKeyboardButton(text="📊 Статистика", callback_data="referral_stats")],
+        [InlineKeyboardButton(text="⬅️ Главное меню", callback_data="nav_main_menu")],
     ])
     await send_brand_card(callback.message, "invite", text, kb)
