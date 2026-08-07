@@ -27,7 +27,7 @@ def _missions_keyboard(items: list[dict[str, object]]) -> InlineKeyboardMarkup:
             callback_data = "engagement_mission_noop"
         rows.append([InlineKeyboardButton(text=text, callback_data=callback_data)])
     rows.append([InlineKeyboardButton(text="🔄 Обновить", callback_data="engagement_missions")])
-    rows.append([InlineKeyboardButton(text="⬅️ Профиль", callback_data="profile_refresh")])
+    rows.append([InlineKeyboardButton(text="⬅️ Награды", callback_data="profile_hub_rewards")])
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
@@ -78,14 +78,23 @@ async def engagement_mission_claim(callback: CallbackQuery) -> None:
     await _render_missions(callback)
 
 
-def _retention_keyboard() -> InlineKeyboardMarkup:
+def _retention_keyboard(*, parent: str = "admin") -> InlineKeyboardMarkup:
+    if parent == "growth":
+        refresh = "admin_retention_from_growth"
+        back_callback, back_label = "admin_growth_operations", "⬅️ Growth"
+    elif parent == "ops":
+        refresh = "admin_retention_from_ops"
+        back_callback, back_label = "admin_ops_dashboard", "⬅️ Операции"
+    else:
+        refresh = "admin_retention_dashboard"
+        back_callback, back_label = "admin_back_to_panel", "⬅️ Админка"
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🔄 Обновить", callback_data="admin_retention_dashboard")],
+        [InlineKeyboardButton(text="🔄 Обновить", callback_data=refresh)],
         [
             InlineKeyboardButton(text="📡 Центр", callback_data="admin_ops_dashboard"),
             InlineKeyboardButton(text="🚨 Жалобы", callback_data="admin_complaints_dashboard"),
         ],
-        [InlineKeyboardButton(text="⬅️ Админка", callback_data="admin_back_to_panel")],
+        [InlineKeyboardButton(text=back_label, callback_data=back_callback)],
     ])
 
 
@@ -123,11 +132,12 @@ async def admin_retention_message(message: Message) -> None:
     await message.answer(await _retention_text(), parse_mode="HTML", reply_markup=_retention_keyboard())
 
 
-@router.callback_query(F.data == "admin_retention_dashboard")
+@router.callback_query(F.data.in_({"admin_retention_dashboard", "admin_retention_from_growth", "admin_retention_from_ops"}))
 async def admin_retention_dashboard(callback: CallbackQuery) -> None:
     if callback.from_user.id not in ADMIN_IDS:
         return
+    parent = "growth" if callback.data == "admin_retention_from_growth" else ("ops" if callback.data == "admin_retention_from_ops" else "admin")
     await callback.answer("Обновлено")
     await callback.message.edit_text(
-        await _retention_text(), parse_mode="HTML", reply_markup=_retention_keyboard()
+        await _retention_text(), parse_mode="HTML", reply_markup=_retention_keyboard(parent=parent)
     )
