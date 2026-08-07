@@ -49,7 +49,7 @@ def _day_key(today: date | None = None) -> str:
 
 
 def _goal_keys(user_id: int, day_key: str) -> tuple[str, ...]:
-    # Stable rotation without collecting behavioural content.
+    # Stable rotation without collecting behavioural payloads.
     offset = (user_id + sum(ord(ch) for ch in day_key)) % len(_GOALS)
     ordered = _GOALS[offset:] + _GOALS[:offset]
     return tuple(item[0] for item in ordered[:GOAL_COUNT])
