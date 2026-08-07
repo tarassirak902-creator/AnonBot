@@ -4,6 +4,7 @@ from aiogram import F
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
 
 from app.database.platform_automation_repository import PendingRating, consume_rating_token
+from app.database.platform_match_quality_repository import record_match_quality_rating
 from app.database.platform_social_repository import add_notification, rate_dialog
 
 from .shared import router
@@ -64,6 +65,13 @@ async def submit_dialog_rating(callback: CallbackQuery) -> None:
     if not saved:
         await callback.answer("Оценка уже была учтена.", show_alert=True)
         return
+
+    await record_match_quality_rating(
+        pending.rater_id,
+        pending.rated_user_id,
+        pending.dialog_key,
+        rating,
+    )
 
     emoji, label = RATING_LABELS[rating]
     await add_notification(
