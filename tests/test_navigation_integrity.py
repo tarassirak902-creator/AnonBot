@@ -2,6 +2,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
+from app.core.navigation import PARENTS, back_button, parent_target
+
 
 ROOT = Path(__file__).resolve().parents[1]
 HANDLERS = ROOT / "app" / "handlers"
@@ -9,6 +13,22 @@ HANDLERS = ROOT / "app" / "handlers"
 
 def _source(name: str) -> str:
     return (HANDLERS / name).read_text(encoding="utf-8")
+
+
+def test_navigation_parent_registry_has_unique_callbacks() -> None:
+    callbacks = [target.callback_data for target in PARENTS.values()]
+    assert len(callbacks) == len(set(callbacks))
+
+
+def test_unknown_navigation_parent_fails_fast() -> None:
+    with pytest.raises(ValueError):
+        parent_target("missing-parent")
+
+
+def test_back_button_uses_registered_parent() -> None:
+    button = back_button("activity")
+    assert button.callback_data == "profile_hub_activity"
+    assert "Активность" in button.text
 
 
 def test_profile_nested_screens_return_to_immediate_hubs() -> None:
@@ -82,5 +102,4 @@ def test_context_callbacks_have_registered_handlers() -> None:
         "referral_stats_growth",
     }
     for callback in context_callbacks:
-        # One occurrence can be a button. A second occurrence is required for a handler/filter.
         assert sources.count(callback) >= 2, f"Navigation callback has no registered route: {callback}"
