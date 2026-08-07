@@ -3,6 +3,7 @@ from __future__ import annotations
 from aiogram import F
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
 
+from app.core.ui_renderer import render_callback, render_message
 from app.database.platform_personal_goals_repository import (
     GOAL_REWARD_STARS,
     GOAL_REWARD_XP,
@@ -51,12 +52,8 @@ async def _goal_screen(user_id: int) -> tuple[str, bool]:
 
 @router.callback_query(F.data == "personal_goals")
 async def personal_goals(callback: CallbackQuery) -> None:
-    await callback.answer()
     text, can_claim = await _goal_screen(callback.from_user.id)
-    try:
-        await callback.message.edit_text(text, parse_mode="HTML", reply_markup=_goal_keyboard(can_claim))
-    except Exception:
-        await callback.message.answer(text, parse_mode="HTML", reply_markup=_goal_keyboard(can_claim))
+    await render_callback(callback, text, reply_markup=_goal_keyboard(can_claim))
 
 
 @router.callback_query(F.data == "personal_goal_claim")
@@ -78,10 +75,8 @@ async def personal_goal_claim(callback: CallbackQuery) -> None:
         else:
             await callback.answer(f"Получено {GOAL_REWARD_STARS} ⭐ и {GOAL_REWARD_XP} XP")
     text, can_claim = await _goal_screen(callback.from_user.id)
-    try:
-        await callback.message.edit_text(text, parse_mode="HTML", reply_markup=_goal_keyboard(can_claim))
-    except Exception:
-        pass
+    if callback.message is not None:
+        await render_message(callback.message, text, reply_markup=_goal_keyboard(can_claim))
 
 
 @router.callback_query(F.data == "admin_personal_goals")
@@ -102,8 +97,4 @@ async def admin_personal_goals(callback: CallbackQuery) -> None:
         [InlineKeyboardButton(text="🔄 Обновить", callback_data="admin_personal_goals")],
         [InlineKeyboardButton(text="⬅️ Рост", callback_data="admin_growth_operations")],
     ])
-    await callback.answer("Обновлено")
-    try:
-        await callback.message.edit_text(text, parse_mode="HTML", reply_markup=kb)
-    except Exception:
-        await callback.message.answer(text, parse_mode="HTML", reply_markup=kb)
+    await render_callback(callback, text, reply_markup=kb, answer_text="Обновлено")
