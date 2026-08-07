@@ -13,15 +13,27 @@ from app.services.platform_insights import (
 from .shared import ADMIN_IDS, router
 
 
-def _admin_ops_keyboard(back_callback: str = "admin_back_to_panel", back_label: str = "⬅️ Админка") -> InlineKeyboardMarkup:
+def _admin_ops_keyboard(*, parent: str = "admin") -> InlineKeyboardMarkup:
+    if parent == "growth":
+        refresh = "admin_ops_from_growth"
+        back_callback, back_label = "admin_growth_operations", "⬅️ Growth"
+        health_callback = "admin_platform_health_from_ops_growth"
+        retention_callback = "admin_retention_from_ops_growth"
+        audit_callback = "admin_audit_from_ops_growth"
+    else:
+        refresh = "admin_ops_refresh"
+        back_callback, back_label = "admin_back_to_panel", "⬅️ Админка"
+        health_callback = "admin_platform_health_from_ops"
+        retention_callback = "admin_retention_from_ops"
+        audit_callback = "admin_audit_from_ops"
     return InlineKeyboardMarkup(inline_keyboard=[
         [
-            InlineKeyboardButton(text="🔄 Обновить", callback_data="admin_ops_refresh"),
-            InlineKeyboardButton(text="🩺 Здоровье", callback_data="admin_platform_health_from_ops"),
+            InlineKeyboardButton(text="🔄 Обновить", callback_data=refresh),
+            InlineKeyboardButton(text="🩺 Здоровье", callback_data=health_callback),
         ],
         [
-            InlineKeyboardButton(text="📈 Удержание", callback_data="admin_retention_from_ops"),
-            InlineKeyboardButton(text="🧾 Журнал", callback_data="admin_audit_from_ops"),
+            InlineKeyboardButton(text="📈 Удержание", callback_data=retention_callback),
+            InlineKeyboardButton(text="🧾 Журнал", callback_data=audit_callback),
         ],
         [
             InlineKeyboardButton(text="🚨 Жалобы", callback_data="admin_complaints_dashboard"),
@@ -73,15 +85,12 @@ async def admin_operations_message(message: Message) -> None:
 async def admin_operations_callback(callback: CallbackQuery) -> None:
     if callback.from_user.id not in ADMIN_IDS:
         return
-    from_growth = callback.data == "admin_ops_from_growth"
-    await callback.answer("Обновлено" if callback.data == "admin_ops_refresh" else None)
+    parent = "growth" if callback.data == "admin_ops_from_growth" else "admin"
+    await callback.answer("Обновлено" if "refresh" in (callback.data or "") else None)
     await callback.message.edit_text(
         await _admin_ops_text(),
         parse_mode="HTML",
-        reply_markup=_admin_ops_keyboard(
-            "admin_growth_operations" if from_growth else "admin_back_to_panel",
-            "⬅️ Growth" if from_growth else "⬅️ Админка",
-        ),
+        reply_markup=_admin_ops_keyboard(parent=parent),
     )
 
 
