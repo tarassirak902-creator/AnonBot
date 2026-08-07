@@ -10,7 +10,7 @@ from app.handlers.shared import router, safe_delete_message
 from app.services.profile_insights import build_achievements, load_profile_insights
 
 
-@router.callback_query(F.data == "profile_achievements")
+@router.callback_query(F.data.in_({"profile_achievements", "profile_achievements_from_activity"}))
 async def profile_achievements_handler(callback: CallbackQuery) -> None:
     user = await db.get_user(callback.from_user.id)
     if not user:
@@ -33,10 +33,14 @@ async def profile_achievements_handler(callback: CallbackQuery) -> None:
         sections=("\n\n".join(items),),
         footer="Выполняйте цели, чтобы открыть новые достижения.",
     )
+    from_activity = callback.data == "profile_achievements_from_activity"
+    refresh_callback = "profile_achievements_from_activity" if from_activity else "profile_achievements"
+    back_text = "⬅️ Активность" if from_activity else ButtonText.BACK
+    back_callback = "profile_hub_activity" if from_activity else "profile_refresh"
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [
-            InlineKeyboardButton(text=ButtonText.REFRESH, callback_data="profile_achievements"),
-            InlineKeyboardButton(text="⬅️ Активность", callback_data="profile_hub_activity"),
+            InlineKeyboardButton(text=ButtonText.REFRESH, callback_data=refresh_callback),
+            InlineKeyboardButton(text=back_text, callback_data=back_callback),
         ],
     ])
 
