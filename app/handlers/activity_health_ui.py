@@ -20,7 +20,7 @@ def _activity_keyboard() -> InlineKeyboardMarkup:
             InlineKeyboardButton(text="🤝 Контакты", callback_data="community_connections"),
             InlineKeyboardButton(text="🔄 Обновить", callback_data="user_activity_center"),
         ],
-        [InlineKeyboardButton(text="⬅️ Профиль", callback_data="profile_refresh")],
+        [InlineKeyboardButton(text="⬅️ Активность", callback_data="profile_hub_activity")],
     ])
 
 
@@ -68,11 +68,20 @@ async def user_activity_center(callback: CallbackQuery) -> None:
     )
 
 
-def _health_keyboard() -> InlineKeyboardMarkup:
+def _health_keyboard(*, parent: str = "admin") -> InlineKeyboardMarkup:
+    if parent == "growth":
+        refresh = "admin_platform_health_from_growth"
+        back_callback, back_label = "admin_growth_operations", "⬅️ Growth"
+    elif parent == "ops":
+        refresh = "admin_platform_health_from_ops"
+        back_callback, back_label = "admin_ops_dashboard", "⬅️ Операции"
+    else:
+        refresh = "admin_platform_health"
+        back_callback, back_label = "admin_back_to_panel", "⬅️ Админка"
     return InlineKeyboardMarkup(inline_keyboard=[
         [
-            InlineKeyboardButton(text="🔄 Обновить", callback_data="admin_platform_health"),
-            InlineKeyboardButton(text="🧹 Восстановить матчинг", callback_data="admin_matchmaking_recover"),
+            InlineKeyboardButton(text="🔄 Обновить", callback_data=refresh),
+            InlineKeyboardButton(text="🧹 Восстановить", callback_data=f"admin_matchmaking_recover:{parent}"),
         ],
         [
             InlineKeyboardButton(text="🚨 Жалобы", callback_data="admin_complaints_dashboard"),
@@ -82,7 +91,7 @@ def _health_keyboard() -> InlineKeyboardMarkup:
             InlineKeyboardButton(text="📡 Центр", callback_data="admin_ops_dashboard"),
             InlineKeyboardButton(text="👥 Пользователи", callback_data="admin_user_search"),
         ],
-        [InlineKeyboardButton(text="⬅️ Админка", callback_data="admin_back_to_panel")],
+        [InlineKeyboardButton(text=back_label, callback_data=back_callback)],
     ])
 
 
@@ -127,20 +136,26 @@ async def admin_health_message(message: Message) -> None:
     await message.answer(await _health_text(), parse_mode="HTML", reply_markup=_health_keyboard())
 
 
-@router.callback_query(F.data == "admin_platform_health")
+@router.callback_query(F.data.in_({"admin_platform_health", "admin_platform_health_from_growth", "admin_platform_health_from_ops"}))
 async def admin_platform_health(callback: CallbackQuery) -> None:
     if callback.from_user.id not in ADMIN_IDS:
         return
+    parent = "growth" if callback.data == "admin_platform_health_from_growth" else ("ops" if callback.data == "admin_platform_health_from_ops" else "admin")
     await callback.answer("Обновлено")
     await callback.message.edit_text(
-        await _health_text(), parse_mode="HTML", reply_markup=_health_keyboard()
+        await _health_text(), parse_mode="HTML", reply_markup=_health_keyboard(parent=parent)
     )
 
 
-@router.callback_query(F.data == "admin_matchmaking_recover")
+@router.callback_query(F.data.startswith("admin_matchmaking_recover"))
 async def admin_matchmaking_recover(callback: CallbackQuery) -> None:
     if callback.from_user.id not in ADMIN_IDS:
         return
+    parent = "admin"
+    if callback.data and ":" in callback.data:
+        candidate = callback.data.split(":", 1)[1]
+        if candidate in {"admin", "growth", "ops"}:
+            parent = candidate
     repaired = await recover_matchmaking_state()
     await db.log_action(
         callback.from_user.id,
@@ -149,5 +164,5 @@ async def admin_matchmaking_recover(callback: CallbackQuery) -> None:
     )
     await callback.answer(f"Исправлено строк: {repaired}", show_alert=True)
     await callback.message.edit_text(
-        await _health_text(), parse_mode="HTML", reply_markup=_health_keyboard()
+        await _health_text(), parse_mode="HTML", reply_markup=_health_keyboard(parent=parent)
     )
