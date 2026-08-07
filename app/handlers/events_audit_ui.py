@@ -6,6 +6,7 @@ import aiosqlite
 from aiogram import F
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
 
+from app.core.ui_renderer import render_callback, render_message
 from app.database.repository import DB_PATH
 from .shared import ADMIN_IDS, router
 
@@ -71,8 +72,8 @@ def _event_parent(parent: str) -> tuple[str, str, str]:
     return "commercial_daily_hub", "⬅️ Мой день", "weekly_event:daily"
 
 
-async def _render_event(callback: CallbackQuery, *, parent: str = "daily") -> None:
-    progress, claimed = await _weekly_progress(callback.from_user.id)
+async def _event_screen(user_id: int, *, parent: str = "daily") -> tuple[str, InlineKeyboardMarkup]:
+    progress, claimed = await _weekly_progress(user_id)
     completed = progress >= WEEKLY_TARGET
     if claimed:
         status = "✅ Награда уже получена"
@@ -100,12 +101,12 @@ async def _render_event(callback: CallbackQuery, *, parent: str = "daily") -> No
         f"{status}\n\n"
         "Учитывается только факт завершённого знакомства. Содержимое переписки не анализируется."
     )
-    await callback.answer()
-    keyboard = InlineKeyboardMarkup(inline_keyboard=rows)
-    try:
-        await callback.message.edit_text(text, parse_mode="HTML", reply_markup=keyboard)
-    except Exception:
-        await callback.message.answer(text, parse_mode="HTML", reply_markup=keyboard)
+    return text, InlineKeyboardMarkup(inline_keyboard=rows)
+
+
+async def _render_event(callback: CallbackQuery, *, parent: str = "daily") -> None:
+    text, keyboard = await _event_screen(callback.from_user.id, parent=parent)
+    await render_callback(callback, text, reply_markup=keyboard)
 
 
 @router.callback_query(F.data.in_({"weekly_event_hub", "weekly_event:daily"}))
@@ -151,11 +152,16 @@ async def weekly_event_claim(callback: CallbackQuery) -> None:
                     (WEEKLY_REWARD, callback.from_user.id),
                 )
             await conn.commit()
-            await callback.answer(f"Начислено {WEEKLY_REWARD} ⭐", show_alert=True)
+            answer_text = f"Начислено {WEEKLY_REWARD} ⭐"
+            show_alert = True
         else:
             await conn.rollback()
-            await callback.answer("Награда уже получена")
-    await _render_event(callback, parent=parent)
+            answer_text = "Награда уже получена"
+            show_alert = False
+    await callback.answer(answer_text, show_alert=show_alert)
+    text, keyboard = await _event_screen(callback.from_user.id, parent=parent)
+    if callback.message is not None:
+        await render_message(callback.message, text, reply_markup=keyboard)
 
 
 async def _audit_text() -> str:
@@ -210,12 +216,18 @@ def _audit_keyboard(back_callback: str = "admin_back_to_panel", back_label: str 
 async def admin_audit_message(message: Message) -> None:
     if message.from_user.id not in ADMIN_IDS:
         return
-    await message.answer(await _audit_text(), parse_mode="HTML", reply_markup=_audit_keyboard())
+    await render_message(
+        message,
+        await _audit_text(),
+        reply_markup=_audit_keyboard(),
+        prefer_edit=False,
+    )
 
 
 @router.callback_query(F.data.in_({"admin_audit_journal", "admin_audit_from_growth", "admin_audit_from_ops"}))
 async def admin_audit_journal(callback: CallbackQuery) -> None:
     if callback.from_user.id not in ADMIN_IDS:
+        await callback.answer("Недостаточно прав", show_alert=True)
         return
     if callback.data == "admin_audit_from_growth":
         back_callback, back_label = "admin_growth_operations", "⬅️ Growth"
@@ -223,10 +235,9 @@ async def admin_audit_journal(callback: CallbackQuery) -> None:
         back_callback, back_label = "admin_ops_dashboard", "⬅️ Операции"
     else:
         back_callback, back_label = "admin_back_to_panel", "⬅️ Админка"
-    await callback.answer("Обновлено")
-    text = await _audit_text()
-    keyboard = _audit_keyboard(back_callback, back_label)
-    try:
-        await callback.message.edit_text(text, parse_mode="HTML", reply_markup=keyboard)
-    except Exception:
-        await callback.message.answer(text, parse_mode="HTML", reply_markup=keyboard)
+    await render_callback(
+        callback,
+        await _audit_text(),
+        reply_markup=_audit_keyboard(back_callback, back_label),
+        answer_text="Обновлено",
+    )
