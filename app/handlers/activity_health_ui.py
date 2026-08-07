@@ -4,6 +4,7 @@ from aiogram import F
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
 
 from app.core.ui_copy import metric, screen, section
+from app.core.ui_renderer import render_callback, render_message
 from app.services.activity_health import load_platform_health, load_user_weekly_activity
 from app.services.matchmaking_service import matchmaking_health, recover_matchmaking_state
 
@@ -60,11 +61,11 @@ async def _activity_text(user_id: int) -> str:
 
 @router.callback_query(F.data == "user_activity_center")
 async def user_activity_center(callback: CallbackQuery) -> None:
-    await callback.answer("Обновлено")
-    await callback.message.edit_text(
+    await render_callback(
+        callback,
         await _activity_text(callback.from_user.id),
-        parse_mode="HTML",
         reply_markup=_activity_keyboard(),
+        answer_text="Обновлено",
     )
 
 
@@ -140,12 +141,18 @@ async def _health_text() -> str:
 async def admin_health_message(message: Message) -> None:
     if message.from_user.id not in ADMIN_IDS:
         return
-    await message.answer(await _health_text(), parse_mode="HTML", reply_markup=_health_keyboard())
+    await render_message(
+        message,
+        await _health_text(),
+        reply_markup=_health_keyboard(),
+        prefer_edit=False,
+    )
 
 
 @router.callback_query(F.data.in_({"admin_platform_health", "admin_platform_health_from_growth", "admin_platform_health_from_ops", "admin_platform_health_from_ops_growth"}))
 async def admin_platform_health(callback: CallbackQuery) -> None:
     if callback.from_user.id not in ADMIN_IDS:
+        await callback.answer("Недостаточно прав", show_alert=True)
         return
     route = callback.data or ""
     if route == "admin_platform_health_from_growth":
@@ -156,15 +163,18 @@ async def admin_platform_health(callback: CallbackQuery) -> None:
         parent = "ops"
     else:
         parent = "admin"
-    await callback.answer("Обновлено")
-    await callback.message.edit_text(
-        await _health_text(), parse_mode="HTML", reply_markup=_health_keyboard(parent=parent)
+    await render_callback(
+        callback,
+        await _health_text(),
+        reply_markup=_health_keyboard(parent=parent),
+        answer_text="Обновлено",
     )
 
 
 @router.callback_query(F.data.startswith("admin_matchmaking_recover"))
 async def admin_matchmaking_recover(callback: CallbackQuery) -> None:
     if callback.from_user.id not in ADMIN_IDS:
+        await callback.answer("Недостаточно прав", show_alert=True)
         return
     parent = "admin"
     if callback.data and ":" in callback.data:
@@ -178,6 +188,9 @@ async def admin_matchmaking_recover(callback: CallbackQuery) -> None:
         f"repaired_rows={repaired}",
     )
     await callback.answer(f"Исправлено строк: {repaired}", show_alert=True)
-    await callback.message.edit_text(
-        await _health_text(), parse_mode="HTML", reply_markup=_health_keyboard(parent=parent)
-    )
+    if callback.message is not None:
+        await render_message(
+            callback.message,
+            await _health_text(),
+            reply_markup=_health_keyboard(parent=parent),
+        )
