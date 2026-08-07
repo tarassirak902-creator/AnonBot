@@ -36,7 +36,7 @@ async def profile_achievements_handler(callback: CallbackQuery) -> None:
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [
             InlineKeyboardButton(text=ButtonText.REFRESH, callback_data="profile_achievements"),
-            InlineKeyboardButton(text=ButtonText.BACK, callback_data="profile_back"),
+            InlineKeyboardButton(text="⬅️ Активность", callback_data="profile_hub_activity"),
         ],
     ])
 
