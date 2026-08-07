@@ -48,6 +48,7 @@ from . import platform_shop_ui
 from . import platform_progress_ui
 from . import platform_missions_ui
 from . import platform_personal_goals_ui
+from . import platform_reactivation_ui
 from . import navigation_fallback_ui
 # Unified admin and user entry screens must be registered before legacy handlers.
 from . import admin_overview_ui
