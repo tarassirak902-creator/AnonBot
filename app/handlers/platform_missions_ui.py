@@ -11,6 +11,7 @@ from app.database.platform_missions_repository import (
     get_mission_metrics,
     get_mission_profile,
 )
+from app.database.platform_personal_goals_repository import record_personal_goal_event
 from .shared import ADMIN_IDS, db, router
 
 
@@ -43,6 +44,7 @@ async def _mission_screen(user_id: int) -> tuple[str, bool]:
 async def season_missions(callback: CallbackQuery) -> None:
     await callback.answer()
     await record_product_event(callback.from_user.id, "season_missions_open")
+    await record_personal_goal_event(callback.from_user.id, "missions_open")
     text, can_claim = await _mission_screen(callback.from_user.id)
     try:
         await callback.message.edit_text(text, parse_mode="HTML", reply_markup=_mission_keyboard(can_claim))
