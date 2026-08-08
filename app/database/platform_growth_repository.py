@@ -5,6 +5,7 @@ from datetime import date, datetime, timedelta, timezone
 
 import aiosqlite
 
+from .platform_progress_repository import apply_reward_bundle, ensure_reward_schema
 from .repository import DB_PATH
 
 
@@ -95,6 +96,7 @@ async def claim_daily_activity(user_id: int) -> tuple[bool, DailyActivity, int]:
     today_s = today.isoformat()
     async with aiosqlite.connect(DB_PATH, timeout=10) as db:
         await _ensure_schema(db)
+        await ensure_reward_schema(db)
         await db.execute("BEGIN IMMEDIATE")
         row = await (await db.execute(
             "SELECT streak, best_streak, last_claim_date FROM daily_activity WHERE user_id = ?",
@@ -108,21 +110,26 @@ async def claim_daily_activity(user_id: int) -> tuple[bool, DailyActivity, int]:
         streak = previous_streak + 1 if row and row[2] == yesterday else 1
         best = max(int(row[1]) if row else 0, streak)
         reward = _reward_for_streak(streak)
-        await db.execute(
-            """INSERT INTO daily_activity(user_id, streak, best_streak, last_claim_date, total_claims, updated_at)
-               VALUES (?, ?, ?, ?, 1, CURRENT_TIMESTAMP)
-               ON CONFLICT(user_id) DO UPDATE SET
-                   streak=excluded.streak,
-                   best_streak=excluded.best_streak,
-                   last_claim_date=excluded.last_claim_date,
-                   total_claims=daily_activity.total_claims+1,
-                   updated_at=CURRENT_TIMESTAMP""",
-            (user_id, streak, best, today_s),
-        )
-        await db.execute(
-            "INSERT INTO product_events(user_id, event_name, event_day) VALUES (?, 'daily_claim', ?)",
-            (user_id, today_s),
-        )
+        try:
+            await db.execute(
+                """INSERT INTO daily_activity(user_id, streak, best_streak, last_claim_date, total_claims, updated_at)
+                   VALUES (?, ?, ?, ?, 1, CURRENT_TIMESTAMP)
+                   ON CONFLICT(user_id) DO UPDATE SET
+                       streak=excluded.streak,
+                       best_streak=excluded.best_streak,
+                       last_claim_date=excluded.last_claim_date,
+                       total_claims=daily_activity.total_claims+1,
+                       updated_at=CURRENT_TIMESTAMP""",
+                (user_id, streak, best, today_s),
+            )
+            await apply_reward_bundle(db, user_id, stars=reward)
+            await db.execute(
+                "INSERT INTO product_events(user_id, event_name, event_day) VALUES (?, 'daily_claim', ?)",
+                (user_id, today_s),
+            )
+        except Exception:
+            await db.rollback()
+            raise
         await db.commit()
     return True, DailyActivity(streak, best, today_s, True, _reward_for_streak(streak + 1)), reward
 
