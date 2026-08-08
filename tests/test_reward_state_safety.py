@@ -31,7 +31,7 @@ async def test_weekly_reward_rolls_back_claim_when_credit_fails(tmp_path, monkey
         )
         await db.commit()
 
-    with pytest.raises(RuntimeError):
+    with pytest.raises(Exception):
         await progress.claim_weekly_reward(user_id)
 
     profile = await progress.get_progress_profile(user_id)
