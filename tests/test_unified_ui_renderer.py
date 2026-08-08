@@ -39,7 +39,8 @@ def test_notifications_read_does_not_answer_callback_twice() -> None:
     source = _source("app/handlers/platform_social_ui.py")
     handler = source.split("async def notifications_read_callback", 1)[1]
     assert "await notifications_callback(callback)" not in handler
-    assert "await callback.answer(" in handler
+    assert "run_state_action(" in handler
+    assert "callback.answer(" not in handler
     assert "await _notifications_screen(" in handler
     assert "await render_message(" in handler
 
