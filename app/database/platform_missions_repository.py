@@ -5,7 +5,7 @@ from dataclasses import dataclass
 import aiosqlite
 
 from .repository import DB_PATH
-from .platform_progress_repository import apply_reward_bundle, grant_xp_once
+from .platform_progress_repository import apply_reward_bundle, ensure_reward_schema, grant_xp_once
 
 SEASON_KEY = "season-2026-summer"
 MISSION_TARGET = 10
@@ -90,6 +90,7 @@ async def get_mission_profile(user_id: int) -> MissionProfile:
 async def claim_mission_reward(user_id: int) -> bool:
     async with aiosqlite.connect(DB_PATH, timeout=10) as db:
         await _ensure_schema(db)
+        await ensure_reward_schema(db)
         await db.execute("BEGIN IMMEDIATE")
         row = await (await db.execute(
             "SELECT COUNT(*) FROM mission_events WHERE user_id=? AND season_key=?",
