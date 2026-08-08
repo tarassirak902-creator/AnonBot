@@ -3,11 +3,12 @@ from __future__ import annotations
 from aiogram import F
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
 
+from app.core.action_flow import run_state_action
 from app.core.navigation import screen_back_button, screen_refresh_button
 from app.core.ui_renderer import render_message
 from app.database.platform_growth_repository import claim_daily_activity, get_daily_activity, get_growth_metrics, record_product_event
 from app.database.platform_personal_goals_repository import record_personal_goal_event
-from .shared import ADMIN_IDS, db, router
+from .shared import ADMIN_IDS, router
 
 
 def _growth_keyboard(claimed: bool) -> InlineKeyboardMarkup:
@@ -57,19 +58,27 @@ async def growth_center(callback: CallbackQuery) -> None:
 
 @router.callback_query(F.data == "growth_daily_claim")
 async def growth_daily_claim(callback: CallbackQuery) -> None:
-    claimed, activity, reward = await claim_daily_activity(callback.from_user.id)
-    if not claimed:
-        await callback.answer("Бонус уже получен сегодня", show_alert=True)
-    else:
-        try:
-            await db.add_user_balance(callback.from_user.id, reward)
-        except Exception:
-            await callback.answer("Награда записана, баланс обновится после проверки", show_alert=True)
-        else:
-            await record_personal_goal_event(callback.from_user.id, "daily_claim")
-            await callback.answer(f"Получено {reward} ⭐")
-    text, _ = await _growth_text(callback.from_user.id)
-    await render_message(callback.message, text, reply_markup=_growth_keyboard(activity.claimed_today))
+    result = {"reward": 0}
+
+    async def action() -> bool:
+        claimed, _activity, reward = await claim_daily_activity(callback.from_user.id)
+        result["reward"] = reward
+        return claimed
+
+    async def render() -> None:
+        text, claimed = await _growth_text(callback.from_user.id)
+        if callback.message is not None:
+            await render_message(callback.message, text, reply_markup=_growth_keyboard(claimed))
+
+    await run_state_action(
+        callback,
+        action=action,
+        render=render,
+        success_text=lambda: f"Получено {result['reward']} ⭐",
+        noop_text="Бонус уже получен сегодня",
+        error_text="Не удалось начислить бонус. Попробуйте ещё раз",
+        on_success=lambda: record_personal_goal_event(callback.from_user.id, "daily_claim"),
+    )
 
 
 def _admin_growth_keyboard() -> InlineKeyboardMarkup:
