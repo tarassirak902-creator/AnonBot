@@ -3,6 +3,7 @@ from __future__ import annotations
 from aiogram import F
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
 
+from app.core.action_flow import run_state_action
 from app.core.ui_copy import metric, screen, section
 from app.core.ui_renderer import render_callback, render_message
 from app.services.platform_insights import (
@@ -159,6 +160,13 @@ async def community_contact_remove(callback: CallbackQuery) -> None:
         await callback.answer("Некорректный контакт", show_alert=True)
         return
     parent = parts[2] if len(parts) > 2 and parts[2] in {"social", "community"} else "social"
-    removed = await remove_anonymous_contact(callback.from_user.id, contact_id)
-    await callback.answer("Контакт удалён" if removed else "Контакт уже удалён")
-    await _render_contacts(callback, parent=parent)
+    user_id = callback.from_user.id
+
+    await run_state_action(
+        callback,
+        action=lambda: remove_anonymous_contact(user_id, contact_id),
+        render=lambda: _render_contacts(callback, parent=parent),
+        success_text="Контакт удалён",
+        noop_text="Контакт уже удалён",
+        error_text="Не удалось удалить контакт. Попробуйте ещё раз",
+    )
