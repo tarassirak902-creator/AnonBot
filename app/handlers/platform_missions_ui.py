@@ -13,7 +13,7 @@ from app.database.platform_missions_repository import (
     get_mission_profile,
 )
 from app.database.platform_personal_goals_repository import record_personal_goal_event
-from .shared import ADMIN_IDS, db, router
+from .shared import ADMIN_IDS, router
 
 
 def _mission_keyboard(can_claim: bool) -> InlineKeyboardMarkup:
@@ -51,17 +51,20 @@ async def season_missions(callback: CallbackQuery) -> None:
 
 @router.callback_query(F.data == "mission_reward_claim")
 async def mission_reward_claim(callback: CallbackQuery) -> None:
-    claimed = await claim_mission_reward(callback.from_user.id)
-    if not claimed:
-        await callback.answer("Награда недоступна или уже получена", show_alert=True)
+    try:
+        claimed = await claim_mission_reward(callback.from_user.id)
+    except Exception:
+        answer_text = "Не удалось начислить награду. Попробуйте ещё раз"
+        show_alert = True
     else:
-        try:
-            await db.add_user_balance(callback.from_user.id, MISSION_STAR_REWARD)
-        except Exception:
-            await callback.answer("Награда отмечена, баланс будет проверен", show_alert=True)
-        else:
+        if claimed:
             await record_product_event(callback.from_user.id, "season_mission_reward")
-            await callback.answer(f"Получено {MISSION_STAR_REWARD} ⭐ и {MISSION_XP_REWARD} XP")
+            answer_text = f"Получено {MISSION_STAR_REWARD} ⭐ и {MISSION_XP_REWARD} XP"
+            show_alert = False
+        else:
+            answer_text = "Награда недоступна или уже получена"
+            show_alert = True
+    await callback.answer(answer_text, show_alert=show_alert)
     text, can_claim = await _mission_screen(callback.from_user.id)
     if callback.message is not None:
         await render_message(callback.message, text, reply_markup=_mission_keyboard(can_claim))
