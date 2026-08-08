@@ -11,7 +11,7 @@ from app.database.platform_progress_repository import (
     get_progress_metrics,
     get_progress_profile,
 )
-from .shared import ADMIN_IDS, db, router
+from .shared import ADMIN_IDS, router
 
 
 def _progress_keyboard(can_claim: bool) -> InlineKeyboardMarkup:
@@ -50,17 +50,20 @@ async def progress_center(callback: CallbackQuery) -> None:
 
 @router.callback_query(F.data == "progress_weekly_claim")
 async def progress_weekly_claim(callback: CallbackQuery) -> None:
-    claimed = await claim_weekly_reward(callback.from_user.id)
-    if not claimed:
-        await callback.answer("Награда недоступна или уже получена", show_alert=True)
+    try:
+        claimed = await claim_weekly_reward(callback.from_user.id)
+    except Exception:
+        answer_text = "Не удалось начислить награду. Попробуйте ещё раз"
+        show_alert = True
     else:
-        try:
-            await db.add_user_balance(callback.from_user.id, WEEKLY_REWARD)
-        except Exception:
-            await callback.answer("Награда отмечена, баланс будет проверен", show_alert=True)
-        else:
+        if claimed:
             await record_product_event(callback.from_user.id, "weekly_reward_claim")
-            await callback.answer(f"Получено {WEEKLY_REWARD} ⭐")
+            answer_text = f"Получено {WEEKLY_REWARD} ⭐"
+            show_alert = False
+        else:
+            answer_text = "Награда недоступна или уже получена"
+            show_alert = True
+    await callback.answer(answer_text, show_alert=show_alert)
     text, can_claim = await _progress_screen(callback.from_user.id)
     if callback.message is not None:
         await render_message(callback.message, text, reply_markup=_progress_keyboard(can_claim))
