@@ -6,7 +6,7 @@ from datetime import date
 import aiosqlite
 
 from .repository import DB_PATH
-from .platform_progress_repository import apply_reward_bundle
+from .platform_progress_repository import apply_reward_bundle, ensure_reward_schema
 
 
 GOAL_REWARD_STARS = 12
@@ -130,6 +130,7 @@ async def claim_personal_goal_reward(user_id: int) -> bool:
     placeholders = ",".join("?" for _ in keys)
     async with aiosqlite.connect(DB_PATH, timeout=10) as db:
         await _ensure_schema(db)
+        await ensure_reward_schema(db)
         await db.execute("BEGIN IMMEDIATE")
         count_row = await (await db.execute(
             f"SELECT COUNT(*) FROM personal_goal_events WHERE user_id=? AND day_key=? AND event_key IN ({placeholders})",
