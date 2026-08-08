@@ -4,6 +4,7 @@ from aiogram import F
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
 
 from app.core.ui_copy import metric, screen, section
+from app.core.ui_renderer import render_callback, render_message
 from app.services.platform_insights import (
     load_admin_operational_snapshot,
     load_recent_anonymous_contacts,
@@ -78,19 +79,25 @@ async def _admin_ops_text() -> str:
 async def admin_operations_message(message: Message) -> None:
     if message.from_user.id not in ADMIN_IDS:
         return
-    await message.answer(await _admin_ops_text(), parse_mode="HTML", reply_markup=_admin_ops_keyboard())
+    await render_message(
+        message,
+        await _admin_ops_text(),
+        reply_markup=_admin_ops_keyboard(),
+        prefer_edit=False,
+    )
 
 
 @router.callback_query(F.data.in_({"admin_ops_dashboard", "admin_ops_refresh", "admin_ops_from_growth"}))
 async def admin_operations_callback(callback: CallbackQuery) -> None:
     if callback.from_user.id not in ADMIN_IDS:
+        await callback.answer("Недостаточно прав", show_alert=True)
         return
     parent = "growth" if callback.data == "admin_ops_from_growth" else "admin"
-    await callback.answer("Обновлено" if "refresh" in (callback.data or "") else None)
-    await callback.message.edit_text(
+    await render_callback(
+        callback,
         await _admin_ops_text(),
-        parse_mode="HTML",
         reply_markup=_admin_ops_keyboard(parent=parent),
+        answer_text="Обновлено" if "refresh" in (callback.data or "") else None,
     )
 
 
@@ -110,20 +117,25 @@ def _contacts_keyboard(items: list[dict[str, object]], *, parent: str = "social"
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
-async def _render_contacts(callback: CallbackQuery, *, parent: str = "social") -> None:
-    items = await load_recent_anonymous_contacts(callback.from_user.id)
+async def _contacts_screen(user_id: int, *, parent: str = "social") -> tuple[str, InlineKeyboardMarkup]:
+    items = await load_recent_anonymous_contacts(user_id)
     if items:
         lines = [f"• <b>{item['label']}</b>" for item in items]
         body = "\n".join(lines)
     else:
         body = "Пока нет взаимно сохранённых собеседников."
-    await callback.message.edit_text(
+    text = (
         "<b>🤝 Мои контакты</b>\n\n"
         f"{body}\n\n"
-        "Имена и Telegram-профили не раскрываются.",
-        parse_mode="HTML",
-        reply_markup=_contacts_keyboard(items, parent=parent),
+        "Имена и Telegram-профили не раскрываются."
     )
+    return text, _contacts_keyboard(items, parent=parent)
+
+
+async def _render_contacts(callback: CallbackQuery, *, parent: str = "social") -> None:
+    text, keyboard = await _contacts_screen(callback.from_user.id, parent=parent)
+    if callback.message is not None:
+        await render_message(callback.message, text, reply_markup=keyboard)
 
 
 @router.callback_query(F.data == "community_contacts_list")

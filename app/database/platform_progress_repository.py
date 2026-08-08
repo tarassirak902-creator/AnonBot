@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, timedelta
 
 import aiosqlite
 
@@ -86,13 +86,70 @@ async def _ensure_schema(db: aiosqlite.Connection) -> None:
     )
 
 
+async def ensure_reward_schema(db: aiosqlite.Connection) -> None:
+    """Prepare reward tables before a transactional claim begins."""
+    await _ensure_schema(db)
+
+
+async def apply_reward_bundle(
+    db: aiosqlite.Connection,
+    user_id: int,
+    *,
+    stars: int = 0,
+    xp_source: str | None = None,
+    xp_amount: int = 0,
+    weekly_increment: int = 0,
+) -> None:
+    """Apply stars and XP inside the caller's existing transaction.
+
+    Schema creation must happen before BEGIN via ensure_reward_schema(). This
+    function deliberately performs no DDL, so rollback remains reliable.
+    """
+    stars = max(0, min(int(stars), 100_000))
+    xp_amount = max(0, min(int(xp_amount), 500))
+    weekly_increment = max(0, min(int(weekly_increment), WEEKLY_TARGET))
+
+    if stars:
+        cur = await db.execute(
+            "UPDATE users SET stars_balance=COALESCE(stars_balance,0)+? WHERE user_id=?",
+            (stars, user_id),
+        )
+        if cur.rowcount != 1:
+            raise RuntimeError("reward user row not found")
+
+    if xp_amount and xp_source:
+        source_key = xp_source.strip()[:96]
+        if not source_key:
+            raise ValueError("xp_source is required for XP reward")
+        cur = await db.execute(
+            "INSERT OR IGNORE INTO xp_ledger(user_id, source_key, amount) VALUES (?, ?, ?)",
+            (user_id, source_key, xp_amount),
+        )
+        if cur.rowcount == 1:
+            await db.execute(
+                """INSERT INTO account_progress(user_id, xp) VALUES (?, ?)
+                   ON CONFLICT(user_id) DO UPDATE SET
+                       xp=account_progress.xp+excluded.xp,
+                       updated_at=CURRENT_TIMESTAMP""",
+                (user_id, xp_amount),
+            )
+            if weekly_increment:
+                week = _week_key()
+                await db.execute(
+                    """INSERT INTO weekly_progress(user_id, week_key, progress) VALUES (?, ?, ?)
+                       ON CONFLICT(user_id, week_key) DO UPDATE SET
+                           progress=MIN(?, weekly_progress.progress+excluded.progress),
+                           updated_at=CURRENT_TIMESTAMP""",
+                    (user_id, week, weekly_increment, WEEKLY_TARGET),
+                )
+
+
 async def grant_xp_once(user_id: int, source_key: str, amount: int, weekly_increment: int = 0) -> bool:
     source_key = source_key.strip()[:96]
     amount = max(0, min(int(amount), 500))
     weekly_increment = max(0, min(int(weekly_increment), WEEKLY_TARGET))
     if user_id <= 0 or not source_key or amount <= 0:
         return False
-    week = _week_key()
     async with aiosqlite.connect(DB_PATH, timeout=10) as db:
         await _ensure_schema(db)
         await db.execute("BEGIN IMMEDIATE")
@@ -111,6 +168,7 @@ async def grant_xp_once(user_id: int, source_key: str, amount: int, weekly_incre
             (user_id, amount),
         )
         if weekly_increment:
+            week = _week_key()
             await db.execute(
                 """INSERT INTO weekly_progress(user_id, week_key, progress) VALUES (?, ?, ?)
                    ON CONFLICT(user_id, week_key) DO UPDATE SET
@@ -143,15 +201,23 @@ async def get_progress_profile(user_id: int) -> ProgressProfile:
 async def claim_weekly_reward(user_id: int) -> bool:
     week = _week_key()
     async with aiosqlite.connect(DB_PATH, timeout=10) as db:
-        await _ensure_schema(db)
+        await ensure_reward_schema(db)
         await db.execute("BEGIN IMMEDIATE")
         cur = await db.execute(
             """UPDATE weekly_progress SET reward_claimed=1, updated_at=CURRENT_TIMESTAMP
                WHERE user_id=? AND week_key=? AND progress>=? AND reward_claimed=0""",
             (user_id, week, WEEKLY_TARGET),
         )
+        if cur.rowcount != 1:
+            await db.rollback()
+            return False
+        try:
+            await apply_reward_bundle(db, user_id, stars=WEEKLY_REWARD)
+        except Exception:
+            await db.rollback()
+            raise
         await db.commit()
-        return cur.rowcount == 1
+        return True
 
 
 async def get_progress_metrics() -> ProgressMetrics:

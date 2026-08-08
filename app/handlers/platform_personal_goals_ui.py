@@ -11,8 +11,7 @@ from app.database.platform_personal_goals_repository import (
     get_personal_goal_metrics,
     get_personal_goal_profile,
 )
-from app.database.platform_progress_repository import grant_xp_once
-from .shared import ADMIN_IDS, db, router
+from .shared import ADMIN_IDS, router
 
 
 def _goal_keyboard(can_claim: bool) -> InlineKeyboardMarkup:
@@ -58,22 +57,19 @@ async def personal_goals(callback: CallbackQuery) -> None:
 
 @router.callback_query(F.data == "personal_goal_claim")
 async def personal_goal_claim(callback: CallbackQuery) -> None:
-    claimed = await claim_personal_goal_reward(callback.from_user.id)
-    if not claimed:
-        await callback.answer("Награда недоступна или уже получена", show_alert=True)
+    try:
+        claimed = await claim_personal_goal_reward(callback.from_user.id)
+    except Exception:
+        answer_text = "Не удалось начислить награду. Попробуйте ещё раз"
+        show_alert = True
     else:
-        try:
-            await db.add_user_balance(callback.from_user.id, GOAL_REWARD_STARS)
-            await grant_xp_once(
-                callback.from_user.id,
-                f"personal_goal:{callback.from_user.id}:{__import__('datetime').date.today().isoformat()}",
-                GOAL_REWARD_XP,
-                weekly_increment=1,
-            )
-        except Exception:
-            await callback.answer("Награда отмечена, баланс будет проверен", show_alert=True)
+        if claimed:
+            answer_text = f"Получено {GOAL_REWARD_STARS} ⭐ и {GOAL_REWARD_XP} XP"
+            show_alert = False
         else:
-            await callback.answer(f"Получено {GOAL_REWARD_STARS} ⭐ и {GOAL_REWARD_XP} XP")
+            answer_text = "Награда недоступна или уже получена"
+            show_alert = True
+    await callback.answer(answer_text, show_alert=show_alert)
     text, can_claim = await _goal_screen(callback.from_user.id)
     if callback.message is not None:
         await render_message(callback.message, text, reply_markup=_goal_keyboard(can_claim))
