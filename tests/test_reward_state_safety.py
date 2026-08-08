@@ -25,13 +25,18 @@ async def test_weekly_reward_rolls_back_claim_when_credit_fails(tmp_path, monkey
     week = progress._week_key()
     async with aiosqlite.connect(db_path) as db:
         await progress._ensure_schema(db)
+        # Keep the users table valid but omit this user row. This simulates a
+        # real credit failure without mixing schema errors into transaction semantics.
+        await db.execute(
+            "CREATE TABLE IF NOT EXISTS users (user_id INTEGER PRIMARY KEY, stars_balance INTEGER DEFAULT 0)"
+        )
         await db.execute(
             "INSERT INTO weekly_progress(user_id, week_key, progress) VALUES (?, ?, ?)",
             (user_id, week, progress.WEEKLY_TARGET),
         )
         await db.commit()
 
-    with pytest.raises(Exception):
+    with pytest.raises(RuntimeError):
         await progress.claim_weekly_reward(user_id)
 
     profile = await progress.get_progress_profile(user_id)
