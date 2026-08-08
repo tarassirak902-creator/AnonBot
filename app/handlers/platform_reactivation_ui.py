@@ -1,12 +1,10 @@
 from __future__ import annotations
 
-from datetime import date
-
 from aiogram import F
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
 
+from app.core.action_flow import run_state_action
 from app.core.ui_renderer import render_callback, render_message
-from app.database.platform_progress_repository import grant_xp_once
 from app.database.platform_reactivation_repository import (
     COMEBACK_REWARD_STARS,
     COMEBACK_REWARD_XP,
@@ -15,7 +13,7 @@ from app.database.platform_reactivation_repository import (
     get_reactivation_profile,
     record_reactivation_visit,
 )
-from .shared import ADMIN_IDS, db, router
+from .shared import ADMIN_IDS, router
 
 
 def _reactivation_keyboard(can_claim: bool) -> InlineKeyboardMarkup:
@@ -71,25 +69,19 @@ async def reactivation_center(callback: CallbackQuery) -> None:
 
 @router.callback_query(F.data == "reactivation_claim")
 async def reactivation_claim(callback: CallbackQuery) -> None:
-    claimed = await claim_reactivation_reward(callback.from_user.id)
-    if not claimed:
-        await callback.answer("Бонус недоступен или уже получен", show_alert=True)
-    else:
-        try:
-            await db.add_user_balance(callback.from_user.id, COMEBACK_REWARD_STARS)
-            await grant_xp_once(
-                callback.from_user.id,
-                f"comeback:{callback.from_user.id}:{date.today().isocalendar().year}:{date.today().isocalendar().week}",
-                COMEBACK_REWARD_XP,
-                weekly_increment=1,
-            )
-        except Exception:
-            await callback.answer("Бонус отмечен, баланс будет проверен", show_alert=True)
-        else:
-            await callback.answer(f"Получено {COMEBACK_REWARD_STARS} ⭐ и {COMEBACK_REWARD_XP} XP")
-    text, can_claim = await _reactivation_screen(callback.from_user.id, record_visit=False)
-    if callback.message is not None:
-        await render_message(callback.message, text, reply_markup=_reactivation_keyboard(can_claim))
+    async def render() -> None:
+        text, can_claim = await _reactivation_screen(callback.from_user.id, record_visit=False)
+        if callback.message is not None:
+            await render_message(callback.message, text, reply_markup=_reactivation_keyboard(can_claim))
+
+    await run_state_action(
+        callback,
+        action=lambda: claim_reactivation_reward(callback.from_user.id),
+        render=render,
+        success_text=f"Получено {COMEBACK_REWARD_STARS} ⭐ и {COMEBACK_REWARD_XP} XP",
+        noop_text="Бонус недоступен или уже получен",
+        error_text="Не удалось начислить comeback-бонус. Попробуйте ещё раз",
+    )
 
 
 @router.callback_query(F.data == "admin_reactivation_metrics")

@@ -48,6 +48,31 @@ async def test_state_action_success_answers_once_and_renders() -> None:
 
 
 @pytest.mark.asyncio
+async def test_state_action_dynamic_success_text_uses_action_result_state() -> None:
+    callback = FakeCallback()
+    state = {"count": 0}
+
+    async def action() -> bool:
+        state["count"] = 7
+        return True
+
+    async def render() -> None:
+        return None
+
+    result = await run_state_action(
+        callback,
+        action=action,
+        render=render,
+        success_text=lambda: f"changed:{state['count']}",
+        noop_text="noop",
+        error_text="error",
+    )
+
+    assert result is True
+    assert callback.answers == [("changed:7", False)]
+
+
+@pytest.mark.asyncio
 async def test_state_action_noop_answers_once_and_renders() -> None:
     callback = FakeCallback()
     rendered = 0

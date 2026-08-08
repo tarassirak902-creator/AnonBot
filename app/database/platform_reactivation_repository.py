@@ -5,6 +5,7 @@ from datetime import date, datetime, timedelta
 
 import aiosqlite
 
+from .platform_progress_repository import apply_reward_bundle, ensure_reward_schema
 from .repository import DB_PATH
 
 
@@ -148,6 +149,7 @@ async def claim_reactivation_reward(user_id: int, *, today: date | None = None) 
     week = _week_key(current)
     async with aiosqlite.connect(DB_PATH, timeout=10) as db:
         await _ensure_schema(db)
+        await ensure_reward_schema(db)
         await db.execute("BEGIN IMMEDIATE")
         event = await (await db.execute(
             "SELECT gap_days FROM reactivation_events WHERE user_id=? AND return_day=? AND gap_days>=?",
@@ -160,8 +162,23 @@ async def claim_reactivation_reward(user_id: int, *, today: date | None = None) 
             "INSERT OR IGNORE INTO reactivation_rewards(user_id, week_key) VALUES (?, ?)",
             (user_id, week),
         )
+        if cur.rowcount != 1:
+            await db.rollback()
+            return False
+        try:
+            await apply_reward_bundle(
+                db,
+                user_id,
+                stars=COMEBACK_REWARD_STARS,
+                xp_source=f"comeback:{user_id}:{week}",
+                xp_amount=COMEBACK_REWARD_XP,
+                weekly_increment=1,
+            )
+        except Exception:
+            await db.rollback()
+            raise
         await db.commit()
-        return cur.rowcount == 1
+        return True
 
 
 async def get_reactivation_metrics() -> ReactivationMetrics:

@@ -6,6 +6,7 @@ from aiogram import F
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
 
 from app import database as db
+from app.core.action_flow import run_state_action
 from app.core.navigation import screen_back_button, screen_refresh_button
 from app.core.ui_renderer import render_message
 from .shared import router
@@ -111,7 +112,22 @@ async def notifications_callback(callback: CallbackQuery) -> None:
 
 @router.callback_query(F.data == "platform_notifications_read")
 async def notifications_read_callback(callback: CallbackQuery) -> None:
-    changed = await db.mark_notifications_read(callback.from_user.id)
-    await callback.answer(f"Прочитано: {changed}")
-    text, keyboard = await _notifications_screen(callback.from_user.id)
-    await render_message(callback.message, text, reply_markup=keyboard)
+    result = {"changed": 0}
+
+    async def action() -> bool:
+        result["changed"] = await db.mark_notifications_read(callback.from_user.id)
+        return result["changed"] > 0
+
+    async def render() -> None:
+        text, keyboard = await _notifications_screen(callback.from_user.id)
+        if callback.message is not None:
+            await render_message(callback.message, text, reply_markup=keyboard)
+
+    await run_state_action(
+        callback,
+        action=action,
+        render=render,
+        success_text=lambda: f"Прочитано: {result['changed']}",
+        noop_text="Нет непрочитанных уведомлений",
+        error_text="Не удалось обновить уведомления. Попробуйте ещё раз",
+    )
