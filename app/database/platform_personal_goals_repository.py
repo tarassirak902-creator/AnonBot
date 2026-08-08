@@ -6,6 +6,7 @@ from datetime import date
 import aiosqlite
 
 from .repository import DB_PATH
+from .platform_progress_repository import apply_reward_bundle
 
 
 GOAL_REWARD_STARS = 12
@@ -141,8 +142,23 @@ async def claim_personal_goal_reward(user_id: int) -> bool:
             "UPDATE personal_goal_days SET reward_claimed=1, updated_at=CURRENT_TIMESTAMP WHERE user_id=? AND day_key=? AND reward_claimed=0",
             (user_id, day),
         )
+        if cur.rowcount != 1:
+            await db.rollback()
+            return False
+        try:
+            await apply_reward_bundle(
+                db,
+                user_id,
+                stars=GOAL_REWARD_STARS,
+                xp_source=f"personal_goal:{user_id}:{day}",
+                xp_amount=GOAL_REWARD_XP,
+                weekly_increment=1,
+            )
+        except Exception:
+            await db.rollback()
+            raise
         await db.commit()
-        return cur.rowcount == 1
+        return True
 
 
 async def get_personal_goal_metrics() -> PersonalGoalMetrics:
