@@ -7,15 +7,21 @@ from aiogram.types import CallbackQuery
 
 logger = logging.getLogger(__name__)
 
+MessageText = str | Callable[[], str]
+
+
+def _resolve_text(value: MessageText) -> str:
+    return value() if callable(value) else value
+
 
 async def run_state_action(
     callback: CallbackQuery,
     *,
     action: Callable[[], Awaitable[bool]],
     render: Callable[[], Awaitable[None]],
-    success_text: str,
-    noop_text: str,
-    error_text: str,
+    success_text: MessageText,
+    noop_text: MessageText,
+    error_text: MessageText,
     on_success: Callable[[], Awaitable[None]] | None = None,
 ) -> bool:
     """Run one state-changing callback with a deterministic UI lifecycle.
@@ -23,6 +29,9 @@ async def run_state_action(
     Sequence: action -> optional telemetry -> exactly one callback answer ->
     state reload/render. A rendering or telemetry failure never causes a second
     callback answer and never changes the committed action result.
+
+    Message arguments may be callables so an action can expose values such as a
+    granted reward or affected-row count without splitting the lifecycle.
     """
     succeeded = False
     answer_text = noop_text
@@ -47,7 +56,7 @@ async def run_state_action(
                         callback.from_user.id,
                     )
 
-    await callback.answer(answer_text, show_alert=show_alert)
+    await callback.answer(_resolve_text(answer_text), show_alert=show_alert)
 
     try:
         await render()
