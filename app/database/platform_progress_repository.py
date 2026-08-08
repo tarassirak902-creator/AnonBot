@@ -86,6 +86,11 @@ async def _ensure_schema(db: aiosqlite.Connection) -> None:
     )
 
 
+async def ensure_reward_schema(db: aiosqlite.Connection) -> None:
+    """Prepare reward tables before a transactional claim begins."""
+    await _ensure_schema(db)
+
+
 async def apply_reward_bundle(
     db: aiosqlite.Connection,
     user_id: int,
@@ -97,10 +102,9 @@ async def apply_reward_bundle(
 ) -> None:
     """Apply stars and XP inside the caller's existing transaction.
 
-    The caller owns BEGIN/COMMIT/ROLLBACK. If the user row is missing or any
-    update fails, an exception is raised so the claim flag can be rolled back.
+    Schema creation must happen before BEGIN via ensure_reward_schema(). This
+    function deliberately performs no DDL, so rollback remains reliable.
     """
-    await _ensure_schema(db)
     stars = max(0, min(int(stars), 100_000))
     xp_amount = max(0, min(int(xp_amount), 500))
     weekly_increment = max(0, min(int(weekly_increment), WEEKLY_TARGET))
@@ -197,7 +201,7 @@ async def get_progress_profile(user_id: int) -> ProgressProfile:
 async def claim_weekly_reward(user_id: int) -> bool:
     week = _week_key()
     async with aiosqlite.connect(DB_PATH, timeout=10) as db:
-        await _ensure_schema(db)
+        await ensure_reward_schema(db)
         await db.execute("BEGIN IMMEDIATE")
         cur = await db.execute(
             """UPDATE weekly_progress SET reward_claimed=1, updated_at=CURRENT_TIMESTAMP
