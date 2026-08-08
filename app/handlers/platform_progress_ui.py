@@ -3,6 +3,7 @@ from __future__ import annotations
 from aiogram import F
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
 
+from app.core.action_flow import run_state_action
 from app.core.ui_renderer import render_callback, render_message
 from app.database.platform_growth_repository import record_product_event
 from app.database.platform_progress_repository import (
@@ -50,23 +51,22 @@ async def progress_center(callback: CallbackQuery) -> None:
 
 @router.callback_query(F.data == "progress_weekly_claim")
 async def progress_weekly_claim(callback: CallbackQuery) -> None:
-    try:
-        claimed = await claim_weekly_reward(callback.from_user.id)
-    except Exception:
-        answer_text = "Не удалось начислить награду. Попробуйте ещё раз"
-        show_alert = True
-    else:
-        if claimed:
-            await record_product_event(callback.from_user.id, "weekly_reward_claim")
-            answer_text = f"Получено {WEEKLY_REWARD} ⭐"
-            show_alert = False
-        else:
-            answer_text = "Награда недоступна или уже получена"
-            show_alert = True
-    await callback.answer(answer_text, show_alert=show_alert)
-    text, can_claim = await _progress_screen(callback.from_user.id)
-    if callback.message is not None:
-        await render_message(callback.message, text, reply_markup=_progress_keyboard(can_claim))
+    user_id = callback.from_user.id
+
+    async def render() -> None:
+        text, can_claim = await _progress_screen(user_id)
+        if callback.message is not None:
+            await render_message(callback.message, text, reply_markup=_progress_keyboard(can_claim))
+
+    await run_state_action(
+        callback,
+        action=lambda: claim_weekly_reward(user_id),
+        render=render,
+        success_text=f"Получено {WEEKLY_REWARD} ⭐",
+        noop_text="Награда недоступна или уже получена",
+        error_text="Не удалось начислить награду. Попробуйте ещё раз",
+        on_success=lambda: record_product_event(user_id, "weekly_reward_claim"),
+    )
 
 
 @router.callback_query(F.data == "admin_progress_metrics")

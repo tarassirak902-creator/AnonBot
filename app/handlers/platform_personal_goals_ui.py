@@ -3,6 +3,7 @@ from __future__ import annotations
 from aiogram import F
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
 
+from app.core.action_flow import run_state_action
 from app.core.ui_renderer import render_callback, render_message
 from app.database.platform_personal_goals_repository import (
     GOAL_REWARD_STARS,
@@ -57,22 +58,21 @@ async def personal_goals(callback: CallbackQuery) -> None:
 
 @router.callback_query(F.data == "personal_goal_claim")
 async def personal_goal_claim(callback: CallbackQuery) -> None:
-    try:
-        claimed = await claim_personal_goal_reward(callback.from_user.id)
-    except Exception:
-        answer_text = "Не удалось начислить награду. Попробуйте ещё раз"
-        show_alert = True
-    else:
-        if claimed:
-            answer_text = f"Получено {GOAL_REWARD_STARS} ⭐ и {GOAL_REWARD_XP} XP"
-            show_alert = False
-        else:
-            answer_text = "Награда недоступна или уже получена"
-            show_alert = True
-    await callback.answer(answer_text, show_alert=show_alert)
-    text, can_claim = await _goal_screen(callback.from_user.id)
-    if callback.message is not None:
-        await render_message(callback.message, text, reply_markup=_goal_keyboard(can_claim))
+    user_id = callback.from_user.id
+
+    async def render() -> None:
+        text, can_claim = await _goal_screen(user_id)
+        if callback.message is not None:
+            await render_message(callback.message, text, reply_markup=_goal_keyboard(can_claim))
+
+    await run_state_action(
+        callback,
+        action=lambda: claim_personal_goal_reward(user_id),
+        render=render,
+        success_text=f"Получено {GOAL_REWARD_STARS} ⭐ и {GOAL_REWARD_XP} XP",
+        noop_text="Награда недоступна или уже получена",
+        error_text="Не удалось начислить награду. Попробуйте ещё раз",
+    )
 
 
 @router.callback_query(F.data == "admin_personal_goals")
