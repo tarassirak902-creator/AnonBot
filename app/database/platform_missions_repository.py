@@ -1,12 +1,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date, timedelta
 
 import aiosqlite
 
 from .repository import DB_PATH
-from .platform_progress_repository import grant_xp_once
+from .platform_progress_repository import apply_reward_bundle, grant_xp_once
 
 SEASON_KEY = "season-2026-summer"
 MISSION_TARGET = 10
@@ -107,11 +106,22 @@ async def claim_mission_reward(user_id: int) -> bool:
             "UPDATE mission_rewards SET reward_claimed=1, claimed_at=CURRENT_TIMESTAMP WHERE user_id=? AND season_key=? AND reward_claimed=0",
             (user_id, SEASON_KEY),
         )
+        if cur.rowcount != 1:
+            await db.rollback()
+            return False
+        try:
+            await apply_reward_bundle(
+                db,
+                user_id,
+                stars=MISSION_STAR_REWARD,
+                xp_source=f"mission-reward:{SEASON_KEY}",
+                xp_amount=MISSION_XP_REWARD,
+            )
+        except Exception:
+            await db.rollback()
+            raise
         await db.commit()
-    if cur.rowcount == 1:
-        await grant_xp_once(user_id, f"mission-reward:{SEASON_KEY}", MISSION_XP_REWARD)
         return True
-    return False
 
 
 async def get_mission_metrics() -> MissionMetrics:
