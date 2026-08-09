@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+from html import escape
+
 from aiogram import F
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
 
+from app import database as db
 from app.core.action_flow import run_state_action
 from app.core.ui_copy import metric, screen, section
 from app.core.ui_renderer import render_callback, render_message
@@ -22,12 +25,14 @@ def _admin_ops_keyboard(*, parent: str = "admin") -> InlineKeyboardMarkup:
         health_callback = "admin_platform_health_from_ops_growth"
         retention_callback = "admin_retention_from_ops_growth"
         audit_callback = "admin_audit_from_ops_growth"
+        payments_callback = "admin_payment_health_from_growth"
     else:
         refresh = "admin_ops_refresh"
         back_callback, back_label = "admin_back_to_panel", "⬅️ Админка"
         health_callback = "admin_platform_health_from_ops"
         retention_callback = "admin_retention_from_ops"
         audit_callback = "admin_audit_from_ops"
+        payments_callback = "admin_payment_health"
     return InlineKeyboardMarkup(inline_keyboard=[
         [
             InlineKeyboardButton(text="🔄 Обновить", callback_data=refresh),
@@ -38,9 +43,10 @@ def _admin_ops_keyboard(*, parent: str = "admin") -> InlineKeyboardMarkup:
             InlineKeyboardButton(text="🧾 Журнал", callback_data=audit_callback),
         ],
         [
+            InlineKeyboardButton(text="💳 Платежи", callback_data=payments_callback),
             InlineKeyboardButton(text="🚨 Жалобы", callback_data="admin_complaints_dashboard"),
-            InlineKeyboardButton(text="👥 Пользователи", callback_data="admin_user_search"),
         ],
+        [InlineKeyboardButton(text="👥 Пользователи", callback_data="admin_user_search")],
         [InlineKeyboardButton(text="📨 Рассылка", callback_data="admin_broadcast")],
         [InlineKeyboardButton(text=back_label, callback_data=back_callback)],
     ])
@@ -99,6 +105,65 @@ async def admin_operations_callback(callback: CallbackQuery) -> None:
         await _admin_ops_text(),
         reply_markup=_admin_ops_keyboard(parent=parent),
         answer_text="Обновлено" if "refresh" in (callback.data or "") else None,
+    )
+
+
+async def _payment_health_text() -> str:
+    metrics = await db.get_payment_ledger_metrics()
+    issues = await db.get_recent_payment_issues(8)
+    if issues:
+        issue_lines = []
+        for item in issues:
+            marker = "❌" if item.state == "failed" else "⏳"
+            detail = f" · {escape(item.last_error)}" if item.last_error else ""
+            issue_lines.append(
+                f"{marker} <code>{item.user_id}</code> · {escape(item.payment_type)} · "
+                f"<b>{item.total_amount} ⭐</b>{detail}"
+            )
+        issue_body = tuple(issue_lines)
+    else:
+        issue_body = ("✅ Незавершённых платежей нет.",)
+
+    return screen(
+        "💳 Платёжный контроль",
+        intro="Exactly-once обработка Telegram Stars и очередь ручной сверки.",
+        sections=(
+            section("За 24 часа", (
+                metric("✅", "Успешных платежей", metrics.completed_24h),
+                metric("⭐", "Обработано Stars", metrics.completed_stars_24h),
+            )),
+            section("Требует внимания", (
+                metric("⏳", "В обработке", metrics.processing),
+                metric("❌", "С ошибкой", metrics.failed),
+                metric("🧾", "Всего на сверку", metrics.unresolved),
+            )),
+            section("Последние незавершённые", issue_body),
+        ),
+        footer="Charge ID и полный invoice payload в интерфейсе не показываются. Повторная автообработка спорного платежа запрещена.",
+    )
+
+
+def _payment_health_keyboard(*, parent: str = "admin") -> InlineKeyboardMarkup:
+    refresh = "admin_payment_health_from_growth" if parent == "growth" else "admin_payment_health"
+    back = "admin_ops_from_growth" if parent == "growth" else "admin_ops_dashboard"
+    back_label = "⬅️ Growth / Операции" if parent == "growth" else "⬅️ Центр управления"
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🔄 Обновить", callback_data=refresh)],
+        [InlineKeyboardButton(text=back_label, callback_data=back)],
+    ])
+
+
+@router.callback_query(F.data.in_({"admin_payment_health", "admin_payment_health_from_growth"}))
+async def admin_payment_health(callback: CallbackQuery) -> None:
+    if callback.from_user.id not in ADMIN_IDS:
+        await callback.answer("Недостаточно прав", show_alert=True)
+        return
+    parent = "growth" if callback.data == "admin_payment_health_from_growth" else "admin"
+    await render_callback(
+        callback,
+        await _payment_health_text(),
+        reply_markup=_payment_health_keyboard(parent=parent),
+        answer_text="Платёжные данные обновлены",
     )
 
 
