@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import datetime, timedelta
+
 import aiosqlite
 import pytest
 
@@ -35,6 +37,62 @@ async def test_payment_metrics_and_issue_list(tmp_path, monkeypatch) -> None:
     assert "delivery failed" in (by_user[202].last_error or "")
     assert by_user[303].payment_type == "solo_game"
     assert by_user[303].state == "processing"
+
+
+@pytest.mark.asyncio
+async def test_commercial_metrics_use_completed_payments_only(tmp_path, monkeypatch) -> None:
+    db_path = str(tmp_path / "commerce.db")
+    monkeypatch.setattr(payment_ledger, "DB_PATH", db_path)
+
+    completed = [
+        ("vip-1", 101, "vip_subscription_100", 100),
+        ("vip-2", 101, "vip_subscription_250", 250),
+        ("gift-1", 202, "gift_user_50", 50),
+    ]
+    for charge_id, user_id, payload, amount in completed:
+        assert await payment_ledger.claim_payment_processing(charge_id, user_id, payload, amount)
+        await payment_ledger.complete_payment_processing(charge_id)
+
+    assert await payment_ledger.claim_payment_processing("failed", 303, "ad_order_5", 900)
+    await payment_ledger.release_payment_processing("failed", "not delivered")
+    assert await payment_ledger.claim_payment_processing("pending", 404, "solo_darts_40", 40)
+
+    metrics = await payment_ledger.get_commercial_payment_metrics(7)
+    assert metrics.purchases == 3
+    assert metrics.stars == 400
+    assert metrics.unique_buyers == 2
+    assert metrics.average_check == 133
+    assert [item.payment_type for item in metrics.products] == ["vip_subscription", "gift"]
+    assert metrics.products[0].purchases == 2
+    assert metrics.products[0].stars == 350
+    assert metrics.products[0].unique_buyers == 1
+
+
+@pytest.mark.asyncio
+async def test_commercial_period_excludes_old_completed_payments(tmp_path, monkeypatch) -> None:
+    db_path = str(tmp_path / "period.db")
+    monkeypatch.setattr(payment_ledger, "DB_PATH", db_path)
+
+    assert await payment_ledger.claim_payment_processing("recent", 101, "gift_user_20", 20)
+    await payment_ledger.complete_payment_processing("recent")
+    assert await payment_ledger.claim_payment_processing("old", 202, "vip_subscription_500", 500)
+    await payment_ledger.complete_payment_processing("old")
+
+    old_time = (datetime.now() - timedelta(days=10)).isoformat()
+    async with aiosqlite.connect(db_path) as conn:
+        await conn.execute(
+            "UPDATE payment_ledger SET completed_at=? WHERE charge_id='old'",
+            (old_time,),
+        )
+        await conn.commit()
+
+    one_day = await payment_ledger.get_commercial_payment_metrics(1)
+    seven_days = await payment_ledger.get_commercial_payment_metrics(7)
+    thirty_days = await payment_ledger.get_commercial_payment_metrics(30)
+    assert one_day.purchases == 1
+    assert seven_days.purchases == 1
+    assert thirty_days.purchases == 2
+    assert thirty_days.stars == 520
 
 
 @pytest.mark.asyncio
