@@ -108,7 +108,7 @@ async def admin_operations_callback(callback: CallbackQuery) -> None:
     )
 
 
-async def _payment_health_text() -> str:
+async def _payment_health_screen(*, parent: str = "admin") -> tuple[str, InlineKeyboardMarkup]:
     metrics = await db.get_payment_ledger_metrics()
     issues = await db.get_recent_payment_issues(8)
     if issues:
@@ -124,7 +124,7 @@ async def _payment_health_text() -> str:
     else:
         issue_body = ("✅ Незавершённых платежей нет.",)
 
-    return screen(
+    text = screen(
         "💳 Платёжный контроль",
         intro="Exactly-once обработка Telegram Stars и очередь ручной сверки.",
         sections=(
@@ -139,18 +139,33 @@ async def _payment_health_text() -> str:
             )),
             section("Последние незавершённые", issue_body),
         ),
-        footer="Charge ID и полный invoice payload в интерфейсе не показываются. Повторная автообработка спорного платежа запрещена.",
+        footer=(
+            "Кнопка «Проверено» только закрывает ручную сверку. Она не повторяет платёж, "
+            "не выдаёт товар и не разблокирует charge ID."
+        ),
     )
 
-
-def _payment_health_keyboard(*, parent: str = "admin") -> InlineKeyboardMarkup:
     refresh = "admin_payment_health_from_growth" if parent == "growth" else "admin_payment_health"
     back = "admin_ops_from_growth" if parent == "growth" else "admin_ops_dashboard"
     back_label = "⬅️ Growth / Операции" if parent == "growth" else "⬅️ Центр управления"
-    return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🔄 Обновить", callback_data=refresh)],
-        [InlineKeyboardButton(text=back_label, callback_data=back)],
-    ])
+    rows: list[list[InlineKeyboardButton]] = []
+    for item in issues:
+        rows.append([
+            InlineKeyboardButton(
+                text=f"✅ Проверено · {item.user_id} · {item.total_amount}⭐",
+                callback_data=f"admin_payment_resolve:{item.ledger_id}:{parent}",
+            )
+        ])
+    rows.append([InlineKeyboardButton(text="🔄 Обновить", callback_data=refresh)])
+    rows.append([InlineKeyboardButton(text=back_label, callback_data=back)])
+    return text, InlineKeyboardMarkup(inline_keyboard=rows)
+
+
+async def _render_payment_health(callback: CallbackQuery, *, parent: str) -> None:
+    if callback.message is None:
+        return
+    text, keyboard = await _payment_health_screen(parent=parent)
+    await render_message(callback.message, text, reply_markup=keyboard)
 
 
 @router.callback_query(F.data.in_({"admin_payment_health", "admin_payment_health_from_growth"}))
@@ -159,11 +174,35 @@ async def admin_payment_health(callback: CallbackQuery) -> None:
         await callback.answer("Недостаточно прав", show_alert=True)
         return
     parent = "growth" if callback.data == "admin_payment_health_from_growth" else "admin"
+    text, keyboard = await _payment_health_screen(parent=parent)
     await render_callback(
         callback,
-        await _payment_health_text(),
-        reply_markup=_payment_health_keyboard(parent=parent),
+        text,
+        reply_markup=keyboard,
         answer_text="Платёжные данные обновлены",
+    )
+
+
+@router.callback_query(F.data.startswith("admin_payment_resolve:"))
+async def admin_payment_resolve(callback: CallbackQuery) -> None:
+    if callback.from_user.id not in ADMIN_IDS:
+        await callback.answer("Недостаточно прав", show_alert=True)
+        return
+    parts = (callback.data or "").split(":")
+    try:
+        ledger_id = int(parts[1])
+    except (IndexError, TypeError, ValueError):
+        await callback.answer("Некорректная запись", show_alert=True)
+        return
+    parent = parts[2] if len(parts) > 2 and parts[2] in {"admin", "growth"} else "admin"
+    admin_id = callback.from_user.id
+    await run_state_action(
+        callback,
+        action=lambda: db.resolve_payment_issue(ledger_id, admin_id),
+        render=lambda: _render_payment_health(callback, parent=parent),
+        success_text="Сверка закрыта. Платёж повторно не исполнялся",
+        noop_text="Эта сверка уже закрыта",
+        error_text="Не удалось закрыть сверку",
     )
 
 
