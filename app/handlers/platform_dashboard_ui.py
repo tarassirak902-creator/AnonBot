@@ -18,6 +18,19 @@ from app.services.platform_insights import (
 from .shared import ADMIN_IDS, router
 
 
+_PAYMENT_LABELS = {
+    "vip_subscription": "VIP",
+    "ad_order": "Реклама",
+    "duel_create": "Дуэли · создание",
+    "duel_accept": "Дуэли · участие",
+    "solo_game": "Игры",
+    "gift": "Подарки",
+    "reveal": "Открытия",
+    "question_stars": "Вопросы",
+    "unknown": "Другое",
+}
+
+
 def _admin_ops_keyboard(*, parent: str = "admin") -> InlineKeyboardMarkup:
     if parent == "growth":
         refresh = "admin_ops_from_growth"
@@ -148,7 +161,9 @@ async def _payment_health_screen(*, parent: str = "admin") -> tuple[str, InlineK
     refresh = "admin_payment_health_from_growth" if parent == "growth" else "admin_payment_health"
     back = "admin_ops_from_growth" if parent == "growth" else "admin_ops_dashboard"
     back_label = "⬅️ Growth / Операции" if parent == "growth" else "⬅️ Центр управления"
-    rows: list[list[InlineKeyboardButton]] = []
+    rows: list[list[InlineKeyboardButton]] = [
+        [InlineKeyboardButton(text="📊 Коммерция", callback_data=f"admin_commerce:7:{parent}")]
+    ]
     for item in issues:
         rows.append([
             InlineKeyboardButton(
@@ -203,6 +218,69 @@ async def admin_payment_resolve(callback: CallbackQuery) -> None:
         success_text="Сверка закрыта. Платёж повторно не исполнялся",
         noop_text="Эта сверка уже закрыта",
         error_text="Не удалось закрыть сверку",
+    )
+
+
+def _commercial_period_label(days: int) -> str:
+    return "24 часа" if days == 1 else f"{days} дней"
+
+
+async def _commercial_screen(days: int, *, parent: str) -> tuple[str, InlineKeyboardMarkup]:
+    stats = await db.get_commercial_payment_metrics(days)
+    if stats.products:
+        product_lines = tuple(
+            f"• <b>{escape(_PAYMENT_LABELS.get(item.payment_type, item.payment_type))}</b> — "
+            f"{item.purchases} покупок · {item.stars} ⭐ · {item.unique_buyers} плательщиков"
+            for item in stats.products
+        )
+    else:
+        product_lines = ("За выбранный период completed-платежей пока нет.",)
+
+    text = screen(
+        "📊 Коммерческий центр",
+        intro=f"Фактические completed-платежи Telegram Stars за {_commercial_period_label(days)}.",
+        sections=(
+            section("Выручка", (
+                metric("⭐", "Stars", stats.stars),
+                metric("🧾", "Покупок", stats.purchases),
+                metric("👤", "Уникальных плательщиков", stats.unique_buyers),
+                metric("💰", "Средний чек", f"{stats.average_check} ⭐"),
+            )),
+            section("Продукты", product_lines),
+        ),
+        footer="В отчёт входят только платежи со статусом completed. Failed, processing и ручные сверки в выручку не включаются.",
+    )
+    back = "admin_payment_health_from_growth" if parent == "growth" else "admin_payment_health"
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(text="24ч", callback_data=f"admin_commerce:1:{parent}"),
+            InlineKeyboardButton(text="7д", callback_data=f"admin_commerce:7:{parent}"),
+            InlineKeyboardButton(text="30д", callback_data=f"admin_commerce:30:{parent}"),
+        ],
+        [InlineKeyboardButton(text="🔄 Обновить", callback_data=f"admin_commerce:{days}:{parent}")],
+        [InlineKeyboardButton(text="⬅️ Платежи", callback_data=back)],
+    ])
+    return text, keyboard
+
+
+@router.callback_query(F.data.startswith("admin_commerce:"))
+async def admin_commercial_overview(callback: CallbackQuery) -> None:
+    if callback.from_user.id not in ADMIN_IDS:
+        await callback.answer("Недостаточно прав", show_alert=True)
+        return
+    parts = (callback.data or "").split(":")
+    try:
+        days = int(parts[1])
+    except (IndexError, TypeError, ValueError):
+        days = 7
+    days = days if days in {1, 7, 30} else 7
+    parent = parts[2] if len(parts) > 2 and parts[2] in {"admin", "growth"} else "admin"
+    text, keyboard = await _commercial_screen(days, parent=parent)
+    await render_callback(
+        callback,
+        text,
+        reply_markup=keyboard,
+        answer_text="Коммерческие данные обновлены",
     )
 
 
