@@ -20,6 +20,7 @@ class PaymentLedgerMetrics:
 
 @dataclass(frozen=True)
 class PaymentLedgerIssue:
+    ledger_id: int
     user_id: int
     payment_type: str
     total_amount: int
@@ -41,7 +42,6 @@ async def _ensure_optional_column(
             f"ALTER TABLE payment_ledger ADD COLUMN {column_name} {definition}"
         )
     except sqlite3.OperationalError as exc:
-        # Another process may have completed the same additive migration.
         if "duplicate column name" not in str(exc).lower():
             raise
 
@@ -62,6 +62,9 @@ async def _ensure_payment_ledger(conn: aiosqlite.Connection) -> None:
     )
     await _ensure_optional_column(conn, "failed_at", "TEXT")
     await _ensure_optional_column(conn, "last_error", "TEXT")
+    await _ensure_optional_column(conn, "resolved_at", "TEXT")
+    await _ensure_optional_column(conn, "resolved_by", "INTEGER")
+    await _ensure_optional_column(conn, "resolution_note", "TEXT")
 
 
 def _payment_type(payload: str) -> str:
@@ -94,13 +97,11 @@ async def claim_payment_processing(
     payload: str,
     total_amount: int,
 ) -> bool:
-    """Atomically claims a Telegram charge exactly once.
+    """Atomically claim a Telegram charge exactly once.
 
-    Existing charge IDs are never automatically reclaimed, including records left
-    in ``processing`` after a crash. Reclaiming such a record is unsafe because
-    business side effects may already have happened before the process stopped.
-    Failed or interrupted charges therefore remain available for manual support
-    reconciliation instead of risking a duplicate gift, balance credit or VIP.
+    Existing charge IDs are never automatically reclaimed. A failed or manually
+    reconciled record continues to block the same Telegram charge forever because
+    business side effects may already have happened before a process failure.
     """
     if not charge_id:
         return False
@@ -121,24 +122,8 @@ async def claim_payment_processing(
             await conn.commit()
             return True
 
-        row = await (
-            await conn.execute(
-                "SELECT user_id,payload,total_amount FROM payment_ledger WHERE charge_id=?",
-                (charge_id,),
-            )
-        ).fetchone()
         await conn.rollback()
-
-        # A conflicting reuse of the same Telegram charge is rejected just like a
-        # duplicate. Callers log the event without exposing payment data to users.
-        if row is None:
-            return False
-        stored_user, stored_payload, stored_amount = row
-        return False if (
-            int(stored_user) == int(user_id)
-            and stored_payload == payload
-            and int(stored_amount) == int(total_amount)
-        ) else False
+        return False
 
 
 async def complete_payment_processing(charge_id: str) -> None:
@@ -147,7 +132,8 @@ async def complete_payment_processing(charge_id: str) -> None:
         await _ensure_payment_ledger(conn)
         await conn.execute(
             "UPDATE payment_ledger "
-            "SET status='completed',completed_at=?,failed_at=NULL,last_error=NULL "
+            "SET status='completed',completed_at=?,failed_at=NULL,last_error=NULL,"
+            "resolved_at=NULL,resolved_by=NULL,resolution_note=NULL "
             "WHERE charge_id=? AND status='processing'",
             (datetime.now().isoformat(), charge_id),
         )
@@ -155,12 +141,7 @@ async def complete_payment_processing(charge_id: str) -> None:
 
 
 async def release_payment_processing(charge_id: str, error: str | None = None) -> None:
-    """Records a failed/interrupted attempt without making it retryable.
-
-    The historical function name is retained for compatibility with middleware.
-    The claim is intentionally not deleted: an automatic retry could repeat side
-    effects that committed before an exception was raised.
-    """
+    """Record a failed/interrupted attempt without making it retryable."""
     async with aiosqlite.connect(DB_PATH, timeout=10) as conn:
         await conn.execute("PRAGMA busy_timeout=10000")
         await _ensure_payment_ledger(conn)
@@ -170,6 +151,31 @@ async def release_payment_processing(charge_id: str, error: str | None = None) -
             (datetime.now().isoformat(), (error or "")[:2000], charge_id),
         )
         await conn.commit()
+
+
+async def resolve_payment_issue(
+    ledger_id: int,
+    admin_id: int,
+    note: str = "Проверено администратором",
+) -> bool:
+    """Close a reconciliation item without replaying any payment side effects."""
+    if int(ledger_id) < 1 or int(admin_id) < 1:
+        return False
+    safe_note = (note or "Проверено администратором").strip()[:240]
+    async with aiosqlite.connect(DB_PATH, timeout=10) as conn:
+        await conn.execute("PRAGMA busy_timeout=10000")
+        await conn.execute("BEGIN IMMEDIATE")
+        await _ensure_payment_ledger(conn)
+        cursor = await conn.execute(
+            "UPDATE payment_ledger SET resolved_at=?,resolved_by=?,resolution_note=? "
+            "WHERE rowid=? AND status='processing' AND resolved_at IS NULL",
+            (datetime.now().isoformat(), int(admin_id), safe_note, int(ledger_id)),
+        )
+        if cursor.rowcount != 1:
+            await conn.rollback()
+            return False
+        await conn.commit()
+        return True
 
 
 async def get_payment_ledger_metrics() -> PaymentLedgerMetrics:
@@ -186,13 +192,13 @@ async def get_payment_ledger_metrics() -> PaymentLedgerMetrics:
         processing_row = await (
             await conn.execute(
                 "SELECT COUNT(*) FROM payment_ledger "
-                "WHERE status='processing' AND failed_at IS NULL"
+                "WHERE status='processing' AND failed_at IS NULL AND resolved_at IS NULL"
             )
         ).fetchone()
         failed_row = await (
             await conn.execute(
                 "SELECT COUNT(*) FROM payment_ledger "
-                "WHERE status='processing' AND failed_at IS NOT NULL"
+                "WHERE status='processing' AND failed_at IS NOT NULL AND resolved_at IS NULL"
             )
         ).fetchone()
 
@@ -208,15 +214,15 @@ async def get_payment_ledger_metrics() -> PaymentLedgerMetrics:
 
 
 async def get_recent_payment_issues(limit: int = 8) -> list[PaymentLedgerIssue]:
-    """Return recent unresolved payments with sanitized product type only."""
+    """Return unresolved payments with sanitized product type and opaque row id."""
     limit = max(1, min(int(limit), 25))
     async with aiosqlite.connect(DB_PATH, timeout=10) as conn:
         await conn.execute("PRAGMA busy_timeout=10000")
         await _ensure_payment_ledger(conn)
         rows = await (
             await conn.execute(
-                "SELECT user_id,payload,total_amount,started_at,failed_at,last_error "
-                "FROM payment_ledger WHERE status='processing' "
+                "SELECT rowid,user_id,payload,total_amount,started_at,failed_at,last_error "
+                "FROM payment_ledger WHERE status='processing' AND resolved_at IS NULL "
                 "ORDER BY started_at DESC LIMIT ?",
                 (limit,),
             )
@@ -224,12 +230,13 @@ async def get_recent_payment_issues(limit: int = 8) -> list[PaymentLedgerIssue]:
 
     return [
         PaymentLedgerIssue(
-            user_id=int(row[0]),
-            payment_type=_payment_type(str(row[1])),
-            total_amount=int(row[2]),
-            state="failed" if row[4] else "processing",
-            started_at=str(row[3]),
-            last_error=(str(row[5])[:160] if row[5] else None),
+            ledger_id=int(row[0]),
+            user_id=int(row[1]),
+            payment_type=_payment_type(str(row[2])),
+            total_amount=int(row[3]),
+            state="failed" if row[5] else "processing",
+            started_at=str(row[4]),
+            last_error=(str(row[6])[:160] if row[6] else None),
         )
         for row in rows
     ]
