@@ -26,9 +26,9 @@ async def run_state_action(
 ) -> bool:
     """Run one state-changing callback with a deterministic UI lifecycle.
 
-    Sequence: action -> optional telemetry -> exactly one callback answer ->
-    state reload/render. A rendering or telemetry failure never causes a second
-    callback answer and never changes the committed action result.
+    Sequence: action -> optional telemetry -> best-effort callback answer ->
+    state reload/render. A callback-answer, rendering, or telemetry failure never
+    changes the committed action result and never prevents the render attempt.
 
     Message arguments may be callables so an action can expose values such as a
     granted reward or affected-row count without splitting the lifecycle.
@@ -56,7 +56,14 @@ async def run_state_action(
                         callback.from_user.id,
                     )
 
-    await callback.answer(_resolve_text(answer_text), show_alert=show_alert)
+    try:
+        await callback.answer(_resolve_text(answer_text), show_alert=show_alert)
+    except Exception:
+        logger.exception(
+            "state action callback answer failed callback=%s user_id=%s",
+            callback.data,
+            callback.from_user.id,
+        )
 
     try:
         await render()
