@@ -28,12 +28,47 @@ async def test_payment_metrics_and_issue_list(tmp_path, monkeypatch) -> None:
 
     issues = await payment_ledger.get_recent_payment_issues(10)
     assert {item.user_id for item in issues} == {202, 303}
+    assert all(item.ledger_id > 0 for item in issues)
     by_user = {item.user_id: item for item in issues}
     assert by_user[202].payment_type == "question_stars"
     assert by_user[202].state == "failed"
     assert "delivery failed" in (by_user[202].last_error or "")
     assert by_user[303].payment_type == "solo_game"
     assert by_user[303].state == "processing"
+
+
+@pytest.mark.asyncio
+async def test_resolved_issue_leaves_queue_but_charge_stays_blocked(tmp_path, monkeypatch) -> None:
+    db_path = str(tmp_path / "resolved.db")
+    monkeypatch.setattr(payment_ledger, "DB_PATH", db_path)
+
+    assert await payment_ledger.claim_payment_processing("charge-review", 505, "ad_order_17", 300)
+    await payment_ledger.release_payment_processing("charge-review", "delivery uncertain")
+    issues = await payment_ledger.get_recent_payment_issues(10)
+    assert len(issues) == 1
+
+    ledger_id = issues[0].ledger_id
+    assert await payment_ledger.resolve_payment_issue(ledger_id, 999, "Проверено вручную")
+    assert not await payment_ledger.resolve_payment_issue(ledger_id, 999)
+
+    metrics = await payment_ledger.get_payment_ledger_metrics()
+    assert metrics.unresolved == 0
+    assert await payment_ledger.get_recent_payment_issues(10) == []
+
+    # Manual reconciliation never reopens the charge for automatic execution.
+    assert not await payment_ledger.claim_payment_processing("charge-review", 505, "ad_order_17", 300)
+
+    async with aiosqlite.connect(db_path) as conn:
+        row = await (
+            await conn.execute(
+                "SELECT status,resolved_by,resolution_note,resolved_at FROM payment_ledger WHERE charge_id=?",
+                ("charge-review",),
+            )
+        ).fetchone()
+    assert row[0] == "processing"
+    assert row[1] == 999
+    assert row[2] == "Проверено вручную"
+    assert row[3]
 
 
 @pytest.mark.asyncio
