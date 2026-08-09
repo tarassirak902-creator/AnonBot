@@ -29,6 +29,23 @@ class PaymentLedgerIssue:
     last_error: str | None
 
 
+@dataclass(frozen=True)
+class PaymentProductMetric:
+    payment_type: str
+    purchases: int
+    stars: int
+    unique_buyers: int
+
+
+@dataclass(frozen=True)
+class CommercialPaymentMetrics:
+    purchases: int
+    stars: int
+    unique_buyers: int
+    average_check: int
+    products: tuple[PaymentProductMetric, ...]
+
+
 async def _ensure_optional_column(
     conn: aiosqlite.Connection,
     column_name: str,
@@ -186,7 +203,7 @@ async def get_payment_ledger_metrics() -> PaymentLedgerMetrics:
         completed = await (
             await conn.execute(
                 "SELECT COUNT(*),COALESCE(SUM(total_amount),0) FROM payment_ledger "
-                "WHERE status='completed' AND completed_at>=datetime('now','-1 day')"
+                "WHERE status='completed' AND datetime(completed_at)>=datetime('now','-1 day')"
             )
         ).fetchone()
         processing_row = await (
@@ -210,6 +227,68 @@ async def get_payment_ledger_metrics() -> PaymentLedgerMetrics:
         processing=processing,
         failed=failed,
         unresolved=processing + failed,
+    )
+
+
+async def get_commercial_payment_metrics(
+    days: int = 7,
+    *,
+    product_limit: int = 6,
+) -> CommercialPaymentMetrics:
+    """Return completed-payment commerce metrics for a bounded rolling period."""
+    days = max(1, min(int(days), 90))
+    product_limit = max(1, min(int(product_limit), 12))
+    modifier = f"-{days} days"
+
+    async with aiosqlite.connect(DB_PATH, timeout=10) as conn:
+        await conn.execute("PRAGMA busy_timeout=10000")
+        await _ensure_payment_ledger(conn)
+        rows = await (
+            await conn.execute(
+                "SELECT user_id,payload,total_amount FROM payment_ledger "
+                "WHERE status='completed' AND datetime(completed_at)>=datetime('now',?)",
+                (modifier,),
+            )
+        ).fetchall()
+
+    purchases = len(rows)
+    stars = sum(int(row[2] or 0) for row in rows)
+    unique_buyers = len({int(row[0]) for row in rows})
+    average_check = round(stars / purchases) if purchases else 0
+
+    products: dict[str, dict[str, object]] = {}
+    for user_id, payload, total_amount in rows:
+        payment_type = _payment_type(str(payload))
+        bucket = products.setdefault(
+            payment_type,
+            {"purchases": 0, "stars": 0, "buyers": set()},
+        )
+        bucket["purchases"] = int(bucket["purchases"]) + 1
+        bucket["stars"] = int(bucket["stars"]) + int(total_amount or 0)
+        buyers = bucket["buyers"]
+        if isinstance(buyers, set):
+            buyers.add(int(user_id))
+
+    ranked = sorted(
+        products.items(),
+        key=lambda item: (int(item[1]["stars"]), int(item[1]["purchases"])),
+        reverse=True,
+    )[:product_limit]
+    product_metrics = tuple(
+        PaymentProductMetric(
+            payment_type=payment_type,
+            purchases=int(values["purchases"]),
+            stars=int(values["stars"]),
+            unique_buyers=len(values["buyers"]) if isinstance(values["buyers"], set) else 0,
+        )
+        for payment_type, values in ranked
+    )
+    return CommercialPaymentMetrics(
+        purchases=purchases,
+        stars=stars,
+        unique_buyers=unique_buyers,
+        average_check=average_check,
+        products=product_metrics,
     )
 
 
