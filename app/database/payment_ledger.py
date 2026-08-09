@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 import sqlite3
 
 import aiosqlite
@@ -44,6 +44,11 @@ class CommercialPaymentMetrics:
     unique_buyers: int
     average_check: int
     products: tuple[PaymentProductMetric, ...]
+
+
+def _utc_now_iso() -> str:
+    """Return an ISO-8601 UTC timestamp suitable for SQLite datetime()."""
+    return datetime.now(timezone.utc).isoformat()
 
 
 async def _ensure_optional_column(
@@ -123,7 +128,7 @@ async def claim_payment_processing(
     if not charge_id:
         return False
 
-    now_iso = datetime.now().isoformat()
+    now_iso = _utc_now_iso()
     async with aiosqlite.connect(DB_PATH, timeout=10) as conn:
         await conn.execute("PRAGMA busy_timeout=10000")
         await conn.execute("BEGIN IMMEDIATE")
@@ -152,7 +157,7 @@ async def complete_payment_processing(charge_id: str) -> None:
             "SET status='completed',completed_at=?,failed_at=NULL,last_error=NULL,"
             "resolved_at=NULL,resolved_by=NULL,resolution_note=NULL "
             "WHERE charge_id=? AND status='processing'",
-            (datetime.now().isoformat(), charge_id),
+            (_utc_now_iso(), charge_id),
         )
         await conn.commit()
 
@@ -163,9 +168,10 @@ async def release_payment_processing(charge_id: str, error: str | None = None) -
         await conn.execute("PRAGMA busy_timeout=10000")
         await _ensure_payment_ledger(conn)
         await conn.execute(
-            "UPDATE payment_ledger SET failed_at=?,last_error=? "
+            "UPDATE payment_ledger "
+            "SET failed_at=?,last_error=?,resolved_at=NULL,resolved_by=NULL,resolution_note=NULL "
             "WHERE charge_id=? AND status='processing'",
-            (datetime.now().isoformat(), (error or "")[:2000], charge_id),
+            (_utc_now_iso(), (error or "")[:2000], charge_id),
         )
         await conn.commit()
 
@@ -175,7 +181,7 @@ async def resolve_payment_issue(
     admin_id: int,
     note: str = "Проверено администратором",
 ) -> bool:
-    """Close a reconciliation item without replaying any payment side effects."""
+    """Close a failed reconciliation item without replaying payment side effects."""
     if int(ledger_id) < 1 or int(admin_id) < 1:
         return False
     safe_note = (note or "Проверено администратором").strip()[:240]
@@ -185,8 +191,9 @@ async def resolve_payment_issue(
         await _ensure_payment_ledger(conn)
         cursor = await conn.execute(
             "UPDATE payment_ledger SET resolved_at=?,resolved_by=?,resolution_note=? "
-            "WHERE rowid=? AND status='processing' AND resolved_at IS NULL",
-            (datetime.now().isoformat(), int(admin_id), safe_note, int(ledger_id)),
+            "WHERE rowid=? AND status='processing' AND failed_at IS NOT NULL "
+            "AND resolved_at IS NULL",
+            (_utc_now_iso(), int(admin_id), safe_note, int(ledger_id)),
         )
         if cursor.rowcount != 1:
             await conn.rollback()
