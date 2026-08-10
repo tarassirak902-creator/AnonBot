@@ -105,9 +105,12 @@ async def _validate_payload(user_id: int, payload: str, total_amount: int) -> st
         if payload.startswith("reveal_"):
             partner_id = int(payload.split("_", 1)[1])
             expected = int(await db.get_setting("reveal_cost"))
-            current_partner = await db.get_partner(user_id)
-            if partner_id == user_id or current_partner != partner_id or total_amount != expected:
-                return "Диалог завершён или стоимость раскрытия изменилась."
+            if (
+                partner_id == user_id
+                or not await db.is_latest_partner(user_id, partner_id)
+                or total_amount != expected
+            ):
+                return "Предложение раскрытия устарело или стоимость изменилась."
             return None
 
         if payload.startswith("solo_"):
