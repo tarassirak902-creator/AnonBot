@@ -94,6 +94,7 @@ from . import duel_payments
 from . import atomic_question_payments
 from . import atomic_commerce_payments
 from . import premium_payments
+from . import ad_order_payments
 from . import payments
 from . import chat
 

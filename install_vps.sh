@@ -18,4 +18,7 @@ echo
 echo "Зависимости установлены. Запустите:"
 echo "  .venv/bin/python run.py"
 echo
-echo "Для автозапуска смотрите deploy/README_SYSTEMD.md"
+echo "Для безопасного автозапуска используйте:"
+echo "  docs/SECURE_DEPLOYMENT.md"
+echo "Готовый systemd unit:"
+echo "  deploy/anonymous-chat-bot.service"

@@ -6,6 +6,7 @@ from aiogram import F
 from aiogram.types import Message
 
 from app import database as db
+from app.core.payment_middleware import payment_reconciliation_required
 from app.handlers.shared import router
 
 logger = logging.getLogger(__name__)
@@ -34,7 +35,7 @@ async def _resolve_receiver(user_id: int, context: str, reference: str) -> int |
 
 
 @router.message(F.successful_payment.invoice_payload.startswith("question_stars:"))
-async def successful_question_stars_payment(message: Message) -> None:
+async def successful_question_stars_payment(message: Message):
     payment = message.successful_payment
     user_id = message.from_user.id
     try:
@@ -48,7 +49,7 @@ async def successful_question_stars_payment(message: Message) -> None:
     if not receiver_id or amount != int(payment.total_amount) or not 1 <= amount <= 10_000:
         await db.log_action(user_id, "question_stars_invalid", payment.invoice_payload)
         await message.answer("Платёж получен, но данные перевода повреждены. Обратитесь в /paysupport.")
-        return
+        return payment_reconciliation_required("question Stars receiver or amount became invalid after payment")
 
     applied = await db.apply_question_stars_payment(
         charge_id=payment.telegram_payment_charge_id,
@@ -62,7 +63,7 @@ async def successful_question_stars_payment(message: Message) -> None:
             payment.telegram_payment_charge_id,
             user_id,
         )
-        return
+        return None
 
     try:
         await message.bot.send_message(
@@ -83,10 +84,11 @@ async def successful_question_stars_payment(message: Message) -> None:
         "✅ <b>Звёзды успешно отправлены!</b>\n\nВаше имя осталось анонимным.",
         parse_mode="HTML",
     )
+    return None
 
 
 @router.message(F.successful_payment.invoice_payload.startswith("question_vip:"))
-async def successful_question_vip_payment(message: Message) -> None:
+async def successful_question_vip_payment(message: Message):
     payment = message.successful_payment
     user_id = message.from_user.id
     try:
@@ -101,7 +103,7 @@ async def successful_question_vip_payment(message: Message) -> None:
     if not receiver_id or days != 30 or amount != 100:
         await db.log_action(user_id, "question_vip_invalid", payment.invoice_payload)
         await message.answer("Платёж получен, но данные VIP повреждены. Обратитесь в /paysupport.")
-        return
+        return payment_reconciliation_required("question VIP receiver, duration or amount became invalid after payment")
 
     applied = await db.apply_vip_payment(
         charge_id=payment.telegram_payment_charge_id,
@@ -117,7 +119,7 @@ async def successful_question_vip_payment(message: Message) -> None:
             payment.telegram_payment_charge_id,
             user_id,
         )
-        return
+        return None
 
     try:
         await message.bot.send_message(
@@ -138,3 +140,4 @@ async def successful_question_vip_payment(message: Message) -> None:
         "✅ <b>VIP статус успешно подарен!</b>\n\nВаше имя осталось анонимным.",
         parse_mode="HTML",
     )
+    return None

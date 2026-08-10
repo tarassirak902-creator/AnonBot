@@ -7,13 +7,14 @@ from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message
 
 from app import database as db
 from app.core.games import GAME_NAMES
+from app.core.payment_middleware import payment_reconciliation_required
 from app.handlers.shared import router
 
 logger = logging.getLogger(__name__)
 
 
 @router.message(F.successful_payment.invoice_payload.startswith("duel_create_"))
-async def successful_duel_creation_payment(message: Message) -> None:
+async def successful_duel_creation_payment(message: Message):
     payment = message.successful_payment
     creator_id = message.from_user.id
     try:
@@ -25,13 +26,13 @@ async def successful_duel_creation_payment(message: Message) -> None:
         await message.answer(
             "Платёж получен, но данные дуэли повреждены. Обратитесь в /paysupport."
         )
-        return
+        return payment_reconciliation_required("duel creation payload became invalid after payment")
 
     if amount != int(payment.total_amount) or game_type not in GAME_NAMES:
         await message.answer(
             "Платёж получен, но параметры дуэли изменились. Обратитесь в /paysupport."
         )
-        return
+        return payment_reconciliation_required("duel creation amount or game type became invalid after payment")
 
     duel_id = await db.create_waiting_duel_from_payment(
         charge_id=payment.telegram_payment_charge_id,
@@ -51,7 +52,7 @@ async def successful_duel_creation_payment(message: Message) -> None:
             "Платёж зарегистрирован, но диалог уже завершён или другая дуэль активна. "
             "Обратитесь в /paysupport."
         )
-        return
+        return payment_reconciliation_required("paid duel could not be created from current chat state")
 
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[[
@@ -84,9 +85,10 @@ async def successful_duel_creation_payment(message: Message) -> None:
             "Ставка сохранена, но уведомление собеседнику не доставлено. "
             "Обратитесь в /paysupport."
         )
-        return
+        return None
 
     await message.answer(
         f"⏳ Ваша ставка <b>{amount} ⭐</b> оплачена. Ожидаем ответ собеседника.",
         parse_mode="HTML",
     )
+    return None

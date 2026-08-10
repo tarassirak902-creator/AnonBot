@@ -64,20 +64,35 @@ async def load_profile_insights(user_id: int, joined_at: str | None = None) -> P
     async with aiosqlite.connect(DB_PATH, timeout=10) as conn:
         await conn.execute("PRAGMA busy_timeout=10000")
 
-        for table in ("chat_history", "chats_history", "completed_chats"):
-            columns = await _table_columns(conn, table)
-            if {"user_id", "partner_id"}.issubset(columns):
-                values["completed_chats"] = await _count(
-                    conn,
-                    f"SELECT COUNT(*) FROM {table} WHERE user_id=? OR partner_id=?",
-                    (user_id, user_id),
-                )
-                break
-
         user_columns = await _table_columns(conn, "users")
-        if "referrer_id" in user_columns:
+        if "completed_dialogs" in user_columns:
+            row = await (
+                await conn.execute(
+                    "SELECT COALESCE(completed_dialogs,0) FROM users WHERE user_id=?",
+                    (user_id,),
+                )
+            ).fetchone()
+            values["completed_chats"] = int(row[0] or 0) if row else 0
+        else:
+            for table in ("chat_history", "chats_history", "completed_chats"):
+                columns = await _table_columns(conn, table)
+                if {"user_id", "partner_id"}.issubset(columns):
+                    values["completed_chats"] = await _count(
+                        conn,
+                        f"SELECT COUNT(*) FROM {table} WHERE user_id=? OR partner_id=?",
+                        (user_id, user_id),
+                    )
+                    break
+
+        referrer_column = next(
+            (name for name in ("referred_by", "referrer_id") if name in user_columns),
+            None,
+        )
+        if referrer_column:
             values["referrals_total"] = await _count(
-                conn, "SELECT COUNT(*) FROM users WHERE referrer_id=?", (user_id,)
+                conn,
+                f"SELECT COUNT(*) FROM users WHERE {referrer_column}=?",
+                (user_id,),
             )
 
         question_columns = await _table_columns(conn, "anonymous_questions")
@@ -110,12 +125,12 @@ async def load_profile_insights(user_id: int, joined_at: str | None = None) -> P
         if {"buyer_id", "receiver_id", "type"}.issubset(purchase_columns):
             values["gifts_sent"] = await _count(
                 conn,
-                "SELECT COUNT(*) FROM purchases WHERE buyer_id=? AND type='gift'",
+                "SELECT COUNT(*) FROM purchases WHERE buyer_id=? AND type IN ('gift','question_gift')",
                 (user_id,),
             )
             values["gifts_received"] = await _count(
                 conn,
-                "SELECT COUNT(*) FROM purchases WHERE receiver_id=? AND type='gift'",
+                "SELECT COUNT(*) FROM purchases WHERE receiver_id=? AND type IN ('gift','question_gift')",
                 (user_id,),
             )
 

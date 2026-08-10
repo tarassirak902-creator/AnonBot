@@ -17,7 +17,9 @@ def test_mission_repository_blocks_duplicate_progress_and_rewards() -> None:
     assert "UNIQUE(user_id, season_key, event_key)" in source
     assert "BEGIN IMMEDIATE" in source
     assert "reward_claimed=0" in source
-    assert "grant_xp_once" in source
+    # Mission progress and XP must now share the caller's SQLite transaction.
+    assert "apply_reward_bundle" in source
+    assert "await db.rollback()" in source
 
 
 def test_mission_analytics_do_not_store_message_content() -> None:

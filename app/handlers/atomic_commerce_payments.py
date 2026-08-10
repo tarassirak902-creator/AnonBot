@@ -7,6 +7,7 @@ from aiogram import F
 from aiogram.types import Message
 
 from app import database as db
+from app.core.payment_middleware import payment_reconciliation_required
 from app.handlers.shared import router
 
 logger = logging.getLogger(__name__)
@@ -48,7 +49,7 @@ async def _notify_gift(message: Message, receiver_id: int, amount: int, source: 
 
 
 @router.message(F.successful_payment.invoice_payload.startswith("question_gift:"))
-async def successful_question_gift_payment(message: Message) -> None:
+async def successful_question_gift_payment(message: Message):
     payment = message.successful_payment
     buyer_id = message.from_user.id
     try:
@@ -57,12 +58,12 @@ async def successful_question_gift_payment(message: Message) -> None:
         amount = int(payment.total_amount)
     except (AttributeError, TypeError, ValueError):
         await message.answer("Платёж получен, но данные подарка повреждены. Обратитесь в /paysupport.")
-        return
+        return payment_reconciliation_required("question gift payload became invalid after payment")
 
     receiver_id = await _resolve_question_receiver(buyer_id, context, reference)
     if not receiver_id or not await db.get_gift(gift_id):
         await message.answer("Платёж получен, но подарок или получатель недоступен. Обратитесь в /paysupport.")
-        return
+        return payment_reconciliation_required("question gift receiver or gift became unavailable after payment")
 
     applied = await db.apply_gift_payment(
         charge_id=payment.telegram_payment_charge_id,
@@ -73,16 +74,17 @@ async def successful_question_gift_payment(message: Message) -> None:
         purchase_type="question_gift",
     )
     if not applied:
-        return
+        return None
     await _notify_gift(message, receiver_id, amount, "❓ Анонимные вопросы")
     await message.answer(
         "✅ <b>Подарок успешно отправлен!</b>\n\nВаше имя осталось анонимным.",
         parse_mode="HTML",
     )
+    return None
 
 
 @router.message(F.successful_payment.invoice_payload.startswith("gift_"))
-async def successful_chat_gift_payment(message: Message) -> None:
+async def successful_chat_gift_payment(message: Message):
     payment = message.successful_payment
     buyer_id = message.from_user.id
     try:
@@ -92,11 +94,11 @@ async def successful_chat_gift_payment(message: Message) -> None:
         amount = int(payment.total_amount)
     except (AttributeError, TypeError, ValueError):
         await message.answer("Платёж получен, но данные подарка повреждены. Обратитесь в /paysupport.")
-        return
+        return payment_reconciliation_required("chat gift payload became invalid after payment")
 
     if receiver_id == buyer_id or not await db.get_gift(gift_id):
         await message.answer("Платёж получен, но подарок или получатель недоступен. Обратитесь в /paysupport.")
-        return
+        return payment_reconciliation_required("chat gift receiver or gift became unavailable after payment")
 
     applied = await db.apply_gift_payment(
         charge_id=payment.telegram_payment_charge_id,
@@ -107,13 +109,14 @@ async def successful_chat_gift_payment(message: Message) -> None:
         purchase_type="gift",
     )
     if not applied:
-        return
+        return None
     await _notify_gift(message, receiver_id, amount, "💬 Анонимный чат")
     await message.answer("✅ <b>Подарок успешно отправлен.</b>", parse_mode="HTML")
+    return None
 
 
 @router.message(F.successful_payment.invoice_payload.startswith("question_reveal:"))
-async def successful_question_reveal_payment(message: Message) -> None:
+async def successful_question_reveal_payment(message: Message):
     payment = message.successful_payment
     buyer_id = message.from_user.id
     public_id = payment.invoice_payload.split(":", 1)[1]
@@ -127,9 +130,9 @@ async def successful_question_reveal_payment(message: Message) -> None:
     except ValueError:
         logger.exception("Question reveal payment could not be applied: public_id=%s", public_id)
         await message.answer("Платёж получен, но вопрос уже раскрыт или недоступен. Обратитесь в /paysupport.")
-        return
+        return payment_reconciliation_required("question reveal could not be applied after payment")
     if sender_id is None:
-        return
+        return None
 
     try:
         author = await message.bot.get_chat(sender_id)
@@ -146,10 +149,11 @@ async def successful_question_reveal_payment(message: Message) -> None:
         logger.exception("Could not resolve revealed question author: sender_id=%s", sender_id)
         text = f'✅ Автор раскрыт: <a href="tg://user?id={sender_id}">открыть профиль</a>'
     await message.answer(text, parse_mode="HTML")
+    return None
 
 
 @router.message(F.successful_payment.invoice_payload == "vip_subscription_100")
-async def successful_self_vip_payment(message: Message) -> None:
+async def successful_self_vip_payment(message: Message):
     payment = message.successful_payment
     user_id = message.from_user.id
     applied = await db.apply_vip_payment(
@@ -161,8 +165,9 @@ async def successful_self_vip_payment(message: Message) -> None:
         purchase_type="vip_subscription",
     )
     if not applied:
-        return
+        return None
     await message.answer(
         "👑 <b>VIP подписка активирована или продлена на 30 дней!</b>",
         parse_mode="HTML",
     )
+    return None

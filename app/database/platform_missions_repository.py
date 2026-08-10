@@ -5,7 +5,7 @@ from dataclasses import dataclass
 import aiosqlite
 
 from .repository import DB_PATH
-from .platform_progress_repository import apply_reward_bundle, ensure_reward_schema, grant_xp_once
+from .platform_progress_repository import apply_reward_bundle, ensure_reward_schema
 
 SEASON_KEY = "season-2026-summer"
 MISSION_TARGET = 10
@@ -59,16 +59,28 @@ async def record_mission_event(user_id: int, event_key: str, event_type: str) ->
         return False
     async with aiosqlite.connect(DB_PATH, timeout=10) as db:
         await _ensure_schema(db)
+        await ensure_reward_schema(db)
         await db.execute("BEGIN IMMEDIATE")
         cur = await db.execute(
             "INSERT OR IGNORE INTO mission_events(user_id, season_key, event_key, event_type) VALUES (?, ?, ?, ?)",
             (user_id, SEASON_KEY, event_key, event_type),
         )
+        if cur.rowcount != 1:
+            await db.rollback()
+            return False
+        try:
+            await apply_reward_bundle(
+                db,
+                user_id,
+                xp_source=f"mission:{SEASON_KEY}:{event_key}",
+                xp_amount=5,
+                weekly_increment=1,
+            )
+        except Exception:
+            await db.rollback()
+            raise
         await db.commit()
-    if cur.rowcount == 1:
-        await grant_xp_once(user_id, f"mission:{SEASON_KEY}:{event_key}", 5, weekly_increment=1)
         return True
-    return False
 
 
 async def get_mission_profile(user_id: int) -> MissionProfile:

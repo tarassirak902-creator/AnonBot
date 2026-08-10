@@ -83,6 +83,9 @@ async def add_xp(user_id: int, amount: int) -> tuple[int, int]:
 
 
 async def claim_daily_reward(user_id: int) -> dict[str, int | bool]:
+    """Claim daily XP and commit the claim plus XP in one transaction."""
+    if int(user_id) <= 0:
+        return {"claimed": False, "streak": 0, "reward": 0, "total_claims": 0}
     today = date.today()
     yesterday = today - timedelta(days=1)
     async with aiosqlite.connect(DB_PATH, timeout=10) as conn:
@@ -102,12 +105,28 @@ async def claim_daily_reward(user_id: int) -> dict[str, int | bool]:
         streak = streak + 1 if last_claim == yesterday else 1
         reward = min(50, 10 + (streak - 1) * 5)
         total_claims += 1
-        await conn.execute(
-            "INSERT INTO daily_rewards(user_id,last_claim_date,streak,total_claims) VALUES (?,?,?,?) "
-            "ON CONFLICT(user_id) DO UPDATE SET last_claim_date=excluded.last_claim_date,"
-            "streak=excluded.streak,total_claims=excluded.total_claims",
-            (user_id, today.isoformat(), streak, total_claims),
-        )
+        try:
+            await conn.execute(
+                "INSERT INTO daily_rewards(user_id,last_claim_date,streak,total_claims) VALUES (?,?,?,?) "
+                "ON CONFLICT(user_id) DO UPDATE SET last_claim_date=excluded.last_claim_date,"
+                "streak=excluded.streak,total_claims=excluded.total_claims",
+                (user_id, today.isoformat(), streak, total_claims),
+            )
+            await conn.execute(
+                "INSERT INTO user_progress(user_id,xp,level) VALUES (?,?,1) "
+                "ON CONFLICT(user_id) DO UPDATE SET xp=user_progress.xp+excluded.xp",
+                (user_id, reward),
+            )
+            xp_row = await (
+                await conn.execute("SELECT xp FROM user_progress WHERE user_id=?", (user_id,))
+            ).fetchone()
+            if not xp_row:
+                raise RuntimeError("daily reward XP row was not created")
+            xp = int(xp_row[0] or 0)
+            level = max(1, xp // 100 + 1)
+            await conn.execute("UPDATE user_progress SET level=? WHERE user_id=?", (level, user_id))
+        except Exception:
+            await conn.rollback()
+            raise
         await conn.commit()
-    await add_xp(user_id, reward)
     return {"claimed": True, "streak": streak, "reward": reward, "total_claims": total_claims}
