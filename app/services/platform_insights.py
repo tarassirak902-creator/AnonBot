@@ -51,16 +51,33 @@ async def load_admin_operational_snapshot() -> dict[str, int]:
         result["active_chats"] = await _count(conn, "SELECT COUNT(*) FROM active_chats")
 
         user_cols = await _columns(conn, "users")
-        created = next((name for name in ("created_at", "join_date", "registered_at") if name in user_cols), None)
+        created = next(
+            (
+                name
+                for name in ("joined_date", "created_at", "join_date", "registered_at")
+                if name in user_cols
+            ),
+            None,
+        )
         if created:
-            result["users_24h"] = await _count(conn, f"SELECT COUNT(*) FROM users WHERE {created}>=?", (day_ago,))
-            result["users_7d"] = await _count(conn, f"SELECT COUNT(*) FROM users WHERE {created}>=?", (week_ago,))
+            result["users_24h"] = await _count(
+                conn,
+                f"SELECT COUNT(*) FROM users WHERE datetime({created})>=datetime(?)",
+                (day_ago,),
+            )
+            result["users_7d"] = await _count(
+                conn,
+                f"SELECT COUNT(*) FROM users WHERE datetime({created})>=datetime(?)",
+                (week_ago,),
+            )
 
         complaint_cols = await _columns(conn, "complaints")
         if complaint_cols:
             result["complaints"] = await _count(conn, "SELECT COUNT(*) FROM complaints")
-        elif "complaints" in user_cols:
-            result["complaints"] = await _count(conn, "SELECT COALESCE(SUM(complaints),0) FROM users")
+        elif "complaints_sent" in user_cols:
+            result["complaints"] = await _count(
+                conn, "SELECT COALESCE(SUM(complaints_sent),0) FROM users"
+            )
 
         if await _table_exists(conn, "reconnect_requests"):
             result["pending_reconnects"] = await _count(
