@@ -30,12 +30,16 @@ async def main() -> None:
 
     sent = 0
     failed = 0
+    # Successful sends disappear from the query as they are marked. Keep the
+    # offset only over failed rows that remain eligible, otherwise successful
+    # rows would shrink the result set and make us skip untouched users.
     offset = 0
     try:
         while True:
             rows = await db.get_users_without_questions_intro(limit=250, offset=offset)
             if not rows:
                 break
+            failed_in_batch = 0
             for (user_id,) in rows:
                 try:
                     await bot.send_message(
@@ -48,8 +52,9 @@ async def main() -> None:
                     sent += 1
                 except Exception:
                     failed += 1
+                    failed_in_batch += 1
                 await asyncio.sleep(0.05)
-            offset += len(rows)
+            offset += failed_in_batch
     finally:
         await bot.session.close()
 
