@@ -18,6 +18,31 @@ async def record_recent_partners(user_id: int, partner_id: int) -> None:
         await conn.commit()
 
 
+async def is_latest_partner(user_id: int, partner_id: int) -> bool:
+    """Return whether partner_id is the user's most recently matched partner.
+
+    Reveal offers are shown after the active chat has already been removed, so
+    authorization must use durable matchmaking history instead of active_chats.
+    """
+    try:
+        user_id = int(user_id)
+        partner_id = int(partner_id)
+    except (TypeError, ValueError):
+        return False
+    if user_id <= 0 or partner_id <= 0 or user_id == partner_id:
+        return False
+
+    async with aiosqlite.connect(DB_PATH, timeout=10) as conn:
+        row = await (
+            await conn.execute(
+                "SELECT partner_id FROM recent_partners WHERE user_id=? "
+                "ORDER BY datetime(last_chat_at) DESC, rowid DESC LIMIT 1",
+                (user_id,),
+            )
+        ).fetchone()
+    return bool(row and int(row[0]) == partner_id)
+
+
 async def rate_user(rater_id: int, rated_user_id: int, score: int) -> None:
     if score not in (-1, 0, 1):
         raise ValueError("score must be -1, 0 or 1")
