@@ -18,11 +18,11 @@ async def log_media(message: Message, sender_id: int, receiver_id: int, media_ty
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
         info = (
-            f"📁 <b>МЕДИАФАЙЛ В ЧАТЕ ({media_type.upper()})</b>\n\n"
-            f"📝 <b>Подпись:</b> {caption or 'нет'}\n"
+            f"📁 <b>МЕДИАФАЙЛ В ЧАТЕ ({html.escape(media_type.upper())})</b>\n\n"
+            f"📝 <b>Подпись:</b> {html.escape(caption or 'нет')}\n"
             f"🕐 <b>Время:</b> {now}\n\n"
-            f"👤 <b>Отправитель:</b>\n├ Имя: {s_name}\n├ Username: {s_un}\n└ ID: <code>{sender_id}</code>\n\n"
-            f"💬 <b>Получатель:</b>\n├ Имя: {r_name}\n├ Username: {r_un}\n└ ID: <code>{receiver_id}</code>"
+            f"👤 <b>Отправитель:</b>\n├ Имя: {html.escape(s_name)}\n├ Username: {html.escape(s_un)}\n└ ID: <code>{sender_id}</code>\n\n"
+            f"💬 <b>Получатель:</b>\n├ Имя: {html.escape(r_name)}\n├ Username: {html.escape(r_un)}\n└ ID: <code>{receiver_id}</code>"
         )
 
         admin_kb = InlineKeyboardMarkup(inline_keyboard=[
