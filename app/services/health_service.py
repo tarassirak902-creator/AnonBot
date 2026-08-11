@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import html
 import shutil
 import sqlite3
 from dataclasses import dataclass
@@ -73,5 +74,7 @@ def format_health_report(checks: list[HealthCheck]) -> str:
     lines = [header, ""]
     for item in checks:
         icon = "✅" if item.ok else "❌"
-        lines.append(f"{icon} <b>{item.name}</b>: <code>{item.detail}</code>")
+        safe_name = html.escape(item.name)
+        safe_detail = html.escape(item.detail)
+        lines.append(f"{icon} <b>{safe_name}</b>: <code>{safe_detail}</code>")
     return "\n".join(lines)

@@ -47,6 +47,22 @@ def test_online_backup_is_integrity_checked_and_rotated(tmp_path: Path) -> None:
         assert conn.execute("SELECT name FROM users WHERE user_id=1").fetchone() == ("Casper",)
 
 
+def test_backups_created_in_same_second_have_unique_names(tmp_path: Path) -> None:
+    db_path = tmp_path / "bot.db"
+    with sqlite3.connect(db_path) as conn:
+        conn.execute("CREATE TABLE t(value INTEGER)")
+        conn.commit()
+
+    backup_dir = tmp_path / "backups"
+    first = create_database_backup(source=db_path, backup_dir=backup_dir, keep=5)
+    second = create_database_backup(source=db_path, backup_dir=backup_dir, keep=5)
+
+    assert first.path != second.path
+    assert first.path.exists()
+    assert second.path.exists()
+    assert len(list(backup_dir.glob("bot-*.db"))) == 2
+
+
 @pytest.mark.asyncio
 async def test_health_reports_database_schema_and_disk(tmp_path: Path, monkeypatch) -> None:
     db_path = tmp_path / "bot.db"
@@ -63,3 +79,13 @@ async def test_health_reports_database_schema_and_disk(tmp_path: Path, monkeypat
     assert by_name["schema"].ok is True
     assert f"version={CURRENT_SCHEMA_VERSION}/{CURRENT_SCHEMA_VERSION}" == by_name["schema"].detail
     assert "disk" in by_name
+
+
+def test_health_report_escapes_html_details() -> None:
+    report = health_service.format_health_report([
+        health_service.HealthCheck("log<channel>", False, "A&B <broken>"),
+    ])
+
+    assert "log&lt;channel&gt;" in report
+    assert "A&amp;B &lt;broken&gt;" in report
+    assert "A&B <broken>" not in report
