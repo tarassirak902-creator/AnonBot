@@ -1,13 +1,16 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 from aiogram import F
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message
 
 from app.core.ui_copy import screen
+from app.database.platform_automation_repository import build_dialog_key, create_rating_pair
+from app.database.platform_missions_repository import record_mission_event
 
+from .platform_automation_ui import send_rating_prompt
 from .shared import (
     ADMIN_IDS,
     cancel_inactivity_timer,
@@ -21,6 +24,20 @@ from .shared import (
     send_brand_card,
     start_searching,
 )
+
+
+async def _send_rating_prompts(bot, user_id: int, partner_id: int, dialog_key: str) -> None:
+    """Create one rating token per participant and deliver prompts best-effort."""
+    try:
+        first, second = await create_rating_pair(user_id, partner_id, dialog_key=dialog_key)
+    except Exception:
+        return
+    for pending in (first, second):
+        try:
+            await send_rating_prompt(bot, pending)
+        except Exception:
+            # The token remains valid for the other participant and expires safely.
+            pass
 
 
 async def _finish_dialog(message: Message, *, find_next: bool) -> None:
@@ -60,6 +77,9 @@ async def _finish_dialog(message: Message, *, find_next: bool) -> None:
             )
         return
 
+    ended_at = datetime.now(timezone.utc)
+    dialog_key = build_dialog_key(user_id, partner_id, ended_at)
+
     try:
         await message.bot.send_message(
             partner_id,
@@ -95,7 +115,7 @@ async def _finish_dialog(message: Message, *, find_next: bool) -> None:
             message.bot,
             user_id,
             partner_id,
-            f"manual:{min(user_id, partner_id)}:{max(user_id, partner_id)}:{int(datetime.now().timestamp())}",
+            f"manual:{dialog_key}",
         )
         await message.bot.send_message(
             partner_id,
@@ -108,6 +128,10 @@ async def _finish_dialog(message: Message, *, find_next: bool) -> None:
         )
     except Exception:
         pass
+
+    await _send_rating_prompts(message.bot, user_id, partner_id, dialog_key)
+    await record_mission_event(user_id, f"dialog:{dialog_key}:{user_id}", "dialog_complete")
+    await record_mission_event(partner_id, f"dialog:{dialog_key}:{partner_id}", "dialog_complete")
 
     await db.log_action(user_id, "dialog_end", f"with {partner_id}")
     await notify_pending_question_activity(message.bot, user_id)
