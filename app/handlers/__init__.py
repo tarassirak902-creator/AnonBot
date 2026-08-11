@@ -82,6 +82,8 @@ from .admin_results_ui import install_admin_result_ui
 install_moderation_notices()
 install_admin_result_ui()
 from . import question_subscription_gate
+# Entry copy that depends on the runtime bot identity must register before the legacy advertising module.
+from . import advertising_entry_ui
 from . import advertising
 from . import social_features_ui
 from . import community_ui
