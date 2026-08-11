@@ -3,6 +3,7 @@ from __future__ import annotations
 import aiosqlite
 
 from app.database.repository import DB_PATH
+from app.database.platform_progress_repository import get_progress_profile
 
 
 async def _table_exists(conn: aiosqlite.Connection, table: str) -> bool:
@@ -12,41 +13,66 @@ async def _table_exists(conn: aiosqlite.Connection, table: str) -> bool:
     return row is not None
 
 
+def _tier_for_level(level: int) -> str:
+    if level < 3:
+        return "Новичок"
+    if level < 6:
+        return "Активный"
+    if level < 10:
+        return "Опытный"
+    return "Легенда"
+
+
 async def load_user_commercial_status(user_id: int) -> dict[str, int | str | bool]:
+    """Build the commercial profile from the same XP ledger as Progress.
+
+    Previously this screen derived a second synthetic XP value from message and
+    chat counters, so users could see two different levels in adjacent screens.
+    The canonical ``account_progress`` ledger is now the single source of truth.
+    """
+    progress = await get_progress_profile(user_id)
     async with aiosqlite.connect(DB_PATH, timeout=10) as conn:
         conn.row_factory = aiosqlite.Row
         user = await (await conn.execute(
-            "SELECT stars_balance,is_vip,completed_dialogs,messages_count,chat_time_seconds "
-            "FROM users WHERE user_id=?", (user_id,)
+            "SELECT stars_balance,is_vip,completed_dialogs FROM users WHERE user_id=?",
+            (user_id,),
         )).fetchone()
         if not user:
-            return {"level": 1, "xp": 0, "next_xp": 100, "progress": 0, "tier": "Новичок", "stars": 0, "vip": False, "dialogs": 0}
+            return {
+                "level": progress.level,
+                "xp": progress.xp,
+                "next_xp": progress.next_level_xp,
+                "progress": 0,
+                "tier": _tier_for_level(progress.level),
+                "stars": 0,
+                "vip": False,
+                "dialogs": 0,
+                "contacts": 0,
+            }
 
         contacts = 0
-        if await _table_exists(conn, "user_contacts"):
+        if await _table_exists(conn, "reconnect_requests"):
             row = await (await conn.execute(
-                "SELECT COUNT(*) FROM user_contacts WHERE user_id=?", (user_id,)
+                """SELECT COUNT(DISTINCT CASE
+                       WHEN requester_id=? THEN target_id ELSE requester_id END)
+                   FROM reconnect_requests
+                  WHERE status='accepted' AND (requester_id=? OR target_id=?)""",
+                (user_id, user_id, user_id),
             )).fetchone()
-            contacts = int(row[0] or 0)
+            contacts = int(row[0] or 0) if row else 0
 
-        dialogs = int(user["completed_dialogs"] or 0)
-        messages = int(user["messages_count"] or 0)
-        minutes = int(user["chat_time_seconds"] or 0) // 60
-        xp = dialogs * 25 + min(messages, 5000) // 5 + min(minutes, 5000) // 2 + contacts * 20
-        level = max(1, int((xp / 100) ** 0.5) + 1)
-        level_floor = (level - 1) ** 2 * 100
-        next_xp = level ** 2 * 100
-        progress = max(0, min(100, int((xp - level_floor) * 100 / max(1, next_xp - level_floor))))
-        tier = "Новичок" if level < 3 else "Активный" if level < 6 else "Опытный" if level < 10 else "Легенда"
+        required = max(1, int(progress.next_level_xp))
+        current = max(0, int(progress.current_level_xp))
+        percent = max(0, min(100, int(current * 100 / required)))
         return {
-            "level": level,
-            "xp": xp,
-            "next_xp": next_xp,
-            "progress": progress,
-            "tier": tier,
+            "level": progress.level,
+            "xp": progress.xp,
+            "next_xp": progress.next_level_xp,
+            "progress": percent,
+            "tier": _tier_for_level(progress.level),
             "stars": int(user["stars_balance"] or 0),
             "vip": bool(user["is_vip"]),
-            "dialogs": dialogs,
+            "dialogs": int(user["completed_dialogs"] or 0),
             "contacts": contacts,
         }
 
