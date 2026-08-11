@@ -21,7 +21,7 @@ def test_chat_journey_contract() -> None:
     _assert_journey(source, "chat", (
         'callback_data="start_search"',
         'F.data == "start_search"',
-        'text="⏹ Завершить"',
+        '"end": "⏹ Завершить"',
         'callback_data="nav_main_menu"',
     ))
 
