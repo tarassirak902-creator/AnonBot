@@ -8,14 +8,26 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 HANDLERS = ROOT / "app" / "handlers"
 
-# Duplicates in this set are deliberate compatibility fallbacks. The first
-# registered handler is canonical; later handlers remain for old imports/code.
+# Duplicates in this set are deliberate compatibility/canonical adapters. Import
+# order in app.handlers.__init__ deliberately registers the canonical route first;
+# the later implementation remains for legacy direct imports and compatibility.
 ALLOWED_EXACT_DUPLICATES = {
     "nav_main_menu",
     "admin_back_to_panel",
     "buy_vip_sub",
     "profile_withdraw",
     "profile_refresh",
+    "user_activity_center",
+    "community_dialog_history",
+    "community_connections",
+    "engagement_missions",
+    "admin_warned_list",
+    "admin_restricted_list",
+    "check_required_subscriptions",
+    "ads_buy_post",
+    "ads_back_post",
+    "ads_community_channel",
+    "ads_community_group",
 }
 
 
