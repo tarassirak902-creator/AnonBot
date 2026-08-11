@@ -61,7 +61,7 @@ async def test_safe_init_preserves_legacy_matchmaking_rows(tmp_path, monkeypatch
             "SELECT user_id,partner_id,created_at FROM active_chats"
         )).fetchone()
         migration = await (await conn.execute(
-            "SELECT version FROM schema_migrations"
+            "SELECT MAX(version) FROM schema_migrations"
         )).fetchone()
 
     assert queue == (10, "2026-01-01T10:00:00")
@@ -101,6 +101,8 @@ async def test_safe_init_is_repeatable(tmp_path, monkeypatch) -> None:
     async with aiosqlite.connect(db_path) as conn:
         queues = await (await conn.execute("SELECT COUNT(*) FROM queues")).fetchone()
         versions = await (await conn.execute("SELECT COUNT(*) FROM schema_migrations")).fetchone()
+        max_version = await (await conn.execute("SELECT MAX(version) FROM schema_migrations")).fetchone()
 
     assert queues == (1,)
-    assert versions == (1,)
+    assert versions == (schema_migrations.CURRENT_SCHEMA_VERSION,)
+    assert max_version == (schema_migrations.CURRENT_SCHEMA_VERSION,)
