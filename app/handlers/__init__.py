@@ -69,6 +69,7 @@ from . import menus
 from . import profile_achievements
 # Payment/profile entry adapters must be registered before legacy profile callbacks.
 from . import payment_entry_ui
+from . import duel_entry_ui
 from . import callbacks_profile
 from . import referrals
 from . import callbacks_duels
