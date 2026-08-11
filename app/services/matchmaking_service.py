@@ -32,9 +32,33 @@ async def _table_exists(conn: aiosqlite.Connection, table: str) -> bool:
 
 
 async def _repair_active_chats(conn: aiosqlite.Connection) -> int:
-    """Remove self-links, missing peers and non-symmetric chat rows."""
+    """Remove invalid chat rows and clear session markers for every affected user."""
     if not await _table_exists(conn, "active_chats"):
         return 0
+
+    invalid_rows = await (
+        await conn.execute(
+            """
+            SELECT user_id, partner_id
+            FROM active_chats a
+            WHERE user_id=partner_id
+               OR NOT EXISTS (
+                    SELECT 1 FROM active_chats peer
+                    WHERE peer.user_id=a.partner_id
+                      AND peer.partner_id=a.user_id
+               )
+            """
+        )
+    ).fetchall()
+    if not invalid_rows:
+        return 0
+
+    affected_ids = {
+        int(value)
+        for row in invalid_rows
+        for value in row
+        if value is not None and int(value) > 0
+    }
     cursor = await conn.execute(
         "DELETE FROM active_chats "
         "WHERE user_id=partner_id "
@@ -44,14 +68,28 @@ async def _repair_active_chats(conn: aiosqlite.Connection) -> int:
         "    AND peer.partner_id=active_chats.user_id"
         ")"
     )
-    return max(0, int(cursor.rowcount or 0))
+    removed = max(0, int(cursor.rowcount or 0))
+
+    if affected_ids:
+        placeholders = ",".join("?" for _ in affected_ids)
+        params = tuple(sorted(affected_ids))
+        await conn.execute(
+            f"UPDATE users SET current_chat_start=NULL WHERE user_id IN ({placeholders})",
+            params,
+        )
+        await conn.execute(
+            f"DELETE FROM queues WHERE user_id IN ({placeholders})",
+            params,
+        )
+
+    return removed
 
 
 async def recover_matchmaking_state(
     *,
     stale_queue_after: timedelta = timedelta(hours=6),
 ) -> int:
-    """Repair transient matchmaking state without touching user history."""
+    """Repair transient matchmaking state without touching durable user history."""
     cutoff = (datetime.now(timezone.utc) - stale_queue_after).strftime(
         "%Y-%m-%d %H:%M:%S"
     )
