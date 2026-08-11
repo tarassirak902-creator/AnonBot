@@ -1,3 +1,5 @@
+from html import escape
+
 from .shared import *
 from app.core.ui_copy import metric, screen, section
 from app.services.profile_insights import achievement_progress, build_achievements, load_profile_insights
@@ -91,7 +93,7 @@ async def build_profile_screen(user_id: int) -> tuple[str, InlineKeyboardMarkup]
     questions_received = _safe_int(getattr(insights, "questions_received", 0))
     questions_sent = _safe_int(getattr(insights, "questions_sent", 0))
 
-    identity = first_name + (f" · @{username}" if username else "")
+    identity = escape(str(first_name)) + (f" · @{username}" if username else "")
     status_line = "👑 VIP" if is_vip else "🌙 Обычный"
     rating_text = f"{reputation['score']:+.1f}%" if reputation["total"] else "нет оценок"
 
