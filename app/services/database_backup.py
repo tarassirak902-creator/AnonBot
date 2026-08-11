@@ -21,17 +21,41 @@ def _integrity_check(path: Path) -> str:
     return str(row[0] if row else "unknown")
 
 
+def _record_backup_audit(source_path: Path, result: BackupResult) -> None:
+    created_at = datetime.now(timezone.utc).isoformat()
+    with sqlite3.connect(source_path, timeout=10) as conn:
+        conn.execute("PRAGMA busy_timeout=10000")
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS backup_audit (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                created_at TEXT NOT NULL,
+                path TEXT NOT NULL,
+                size_bytes INTEGER NOT NULL,
+                integrity TEXT NOT NULL
+            )
+            """
+        )
+        conn.execute(
+            "INSERT INTO backup_audit(created_at,path,size_bytes,integrity) VALUES (?,?,?,?)",
+            (created_at, str(result.path), int(result.size_bytes), result.integrity),
+        )
+        conn.commit()
+
+
 def create_database_backup(
     *,
     source: str | Path = DB_PATH,
     backup_dir: str | Path | None = None,
     keep: int = 30,
 ) -> BackupResult:
-    """Create a consistent SQLite backup using the online backup API.
+    """Create, verify and audit a consistent SQLite backup.
 
-    The source database may stay open in WAL mode while this runs. The backup is
-    integrity-checked before it is considered successful and old snapshots are
-    rotated only after the new snapshot is valid.
+    The source database may stay open in WAL mode while this runs. The online
+    backup API copies committed WAL state into the snapshot. A backup is only
+    considered successful after ``PRAGMA integrity_check`` passes and the audit
+    row is committed to the source database. Rotation happens last so a failed
+    audit can never delete an older known-good snapshot.
     """
     source_path = Path(source)
     if not source_path.exists():
@@ -56,8 +80,19 @@ def create_database_backup(
         if temporary.exists():
             temporary.unlink()
 
-    backups = sorted(target_dir.glob("bot-*.db"), key=lambda p: p.stat().st_mtime, reverse=True)
+    result = BackupResult(
+        path=target,
+        size_bytes=target.stat().st_size,
+        integrity=integrity,
+    )
+    _record_backup_audit(source_path, result)
+
+    backups = sorted(
+        target_dir.glob("bot-*.db"),
+        key=lambda path: path.stat().st_mtime,
+        reverse=True,
+    )
     for old in backups[keep:]:
         old.unlink(missing_ok=True)
 
-    return BackupResult(path=target, size_bytes=target.stat().st_size, integrity=integrity)
+    return result
