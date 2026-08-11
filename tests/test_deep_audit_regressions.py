@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 import sqlite3
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -55,6 +54,44 @@ async def test_recovery_clears_session_markers_for_broken_chat(tmp_path: Path, m
     assert chats == (0,)
     assert markers == [(1, None), (2, None)]
     assert queues == (0,)
+
+
+@pytest.mark.asyncio
+async def test_recovery_preserves_marker_for_user_still_in_valid_pair(tmp_path: Path, monkeypatch) -> None:
+    db_path = tmp_path / "bot.db"
+    async with aiosqlite.connect(db_path) as conn:
+        await conn.executescript(
+            """
+            CREATE TABLE users (user_id INTEGER PRIMARY KEY, current_chat_start TEXT);
+            CREATE TABLE active_chats (
+                user_id INTEGER PRIMARY KEY,
+                partner_id INTEGER NOT NULL,
+                created_at TEXT
+            );
+            CREATE TABLE queues (user_id INTEGER PRIMARY KEY, created_at TEXT);
+            INSERT INTO users VALUES (1, 'stale');
+            INSERT INTO users VALUES (2, 'valid');
+            INSERT INTO users VALUES (3, 'valid');
+            INSERT INTO active_chats VALUES (1, 2, CURRENT_TIMESTAMP);
+            INSERT INTO active_chats VALUES (2, 3, CURRENT_TIMESTAMP);
+            INSERT INTO active_chats VALUES (3, 2, CURRENT_TIMESTAMP);
+            """
+        )
+        await conn.commit()
+
+    monkeypatch.setattr(matchmaking_service, "DB_PATH", str(db_path))
+    await matchmaking_service.recover_matchmaking_state()
+
+    async with aiosqlite.connect(db_path) as conn:
+        chats = await (await conn.execute(
+            "SELECT user_id,partner_id FROM active_chats ORDER BY user_id"
+        )).fetchall()
+        markers = await (await conn.execute(
+            "SELECT user_id,current_chat_start FROM users ORDER BY user_id"
+        )).fetchall()
+
+    assert chats == [(2, 3), (3, 2)]
+    assert markers == [(1, None), (2, "valid"), (3, "valid")]
 
 
 @pytest.mark.asyncio
