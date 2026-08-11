@@ -106,7 +106,8 @@ def test_legacy_duplicate_budget_cannot_grow() -> None:
 
 
 def test_canonical_adapters_are_imported_before_legacy_modules() -> None:
-    source = INIT.read_text(encoding="utf-8")
+    lines = INIT.read_text(encoding="utf-8").splitlines()
+    positions = {line.strip(): index for index, line in enumerate(lines)}
     required_order = (
         ("from . import payment_entry_ui", "from . import callbacks_profile"),
         ("from . import duel_action_ui", "from . import callbacks_duels"),
@@ -115,4 +116,4 @@ def test_canonical_adapters_are_imported_before_legacy_modules() -> None:
         ("from . import advertising_entry_ui", "from . import advertising"),
     )
     for canonical, legacy in required_order:
-        assert source.index(canonical) < source.index(legacy), f"{canonical} must register before {legacy}"
+        assert positions[canonical] < positions[legacy], f"{canonical} must register before {legacy}"
