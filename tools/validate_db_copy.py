@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-import shutil
 import sqlite3
 import sys
 import tempfile
@@ -24,6 +23,15 @@ CRITICAL_TABLES = (
     "payment_ledger",
     "premium_deliveries",
 )
+DURABLE_TABLES = {
+    "users",
+    "purchases",
+    "anonymous_questions",
+    "question_link_visits",
+    "game_duels",
+    "payment_ledger",
+    "premium_deliveries",
+}
 
 
 async def _table_exists(conn: aiosqlite.Connection, table: str) -> bool:
@@ -34,6 +42,13 @@ async def _table_exists(conn: aiosqlite.Connection, table: str) -> bool:
         )
     ).fetchone()
     return row is not None
+
+
+def _online_sqlite_copy(source: Path, destination: Path) -> None:
+    """Copy committed SQLite state, including WAL pages, into one standalone DB."""
+    with sqlite3.connect(source, timeout=10) as src, sqlite3.connect(destination) as dst:
+        src.execute("PRAGMA busy_timeout=10000")
+        src.backup(dst)
 
 
 async def _snapshot(path: Path) -> dict[str, int | None]:
@@ -58,7 +73,7 @@ async def validate(source: Path) -> int:
 
     with tempfile.TemporaryDirectory(prefix="anonbot-db-check-") as tmp:
         copy_path = Path(tmp) / "bot-copy.db"
-        shutil.copy2(source, copy_path)
+        _online_sqlite_copy(source, copy_path)
 
         before = await _snapshot(copy_path)
         original_path = schema_migrations.DB_PATH
@@ -82,7 +97,7 @@ async def validate(source: Path) -> int:
             if new is None:
                 failures.append(f"table disappeared: {table}")
                 continue
-            if table in {"users", "purchases", "anonymous_questions", "question_link_visits"} and new < old:
+            if table in DURABLE_TABLES and new < old:
                 failures.append(f"row loss in {table}: {old} -> {new}")
 
         async with aiosqlite.connect(copy_path) as conn:
@@ -117,7 +132,7 @@ async def validate(source: Path) -> int:
                 print(f"- {failure}", file=sys.stderr)
             return 1
 
-        print("OK: migration completed on an isolated copy without critical row loss.")
+        print("OK: migration completed on an isolated online copy without critical row loss.")
         return 0
 
 

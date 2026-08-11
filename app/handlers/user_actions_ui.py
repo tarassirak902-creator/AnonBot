@@ -123,7 +123,7 @@ async def gifts_entry_ui(message: Message) -> None:
         screen(
             "🎁 Подарки",
             intro="Выберите подарок для собеседника.",
-            footer="Стоимость будет списана с баланса после подтверждения.",
+            footer="Оплата проходит через Telegram Stars после подтверждения счёта.",
         ),
         parse_mode="HTML",
         reply_markup=InlineKeyboardMarkup(inline_keyboard=rows),

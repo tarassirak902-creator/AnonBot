@@ -8,9 +8,9 @@ from .shared import *
 @router.message(UserWithdraw.waiting_for_amount)
 async def process_withdraw_amount(message: Message, state: FSMContext):
     user_id = message.from_user.id
-    text = message.text.strip()
+    text = (message.text or "").strip()
     if not text.isdigit() or int(text) <= 0:
-        await message.answer("❌ Введите корректную сумму Звёзд:")
+        await message.answer("❌ Введите корректную сумму Звёзд числом:")
         return
 
     amount = int(text)
@@ -42,7 +42,7 @@ async def process_withdraw_amount(message: Message, state: FSMContext):
         admin_text = (
             f"💸 <b>НОВАЯ ЗАЯВКА НА ВЫВОД ЗВЁЗД!</b>\n\n"
             f"🆔 <b>ID Заявки:</b> #{req_id}\n"
-            f"👤 <b>Пользователь:</b> {u_name} ({u_un})\n"
+            f"👤 <b>Пользователь:</b> {html.escape(u_name)} ({html.escape(u_un)})\n"
             f"🆔 <b>ID:</b> <code>{user_id}</code>\n"
             f"⭐ <b>Сумма вывода:</b> {amount} ⭐"
         )
@@ -63,7 +63,7 @@ async def process_withdraw_amount(message: Message, state: FSMContext):
 
 @router.message(GameSoloBet.waiting_for_bet)
 async def process_solo_game_bet(message: Message, state: FSMContext):
-    text = message.text.strip()
+    text = (message.text or "").strip()
     if not text.isdigit() or int(text) <= 0:
         await message.answer("❌ Введите целое число для ставки:")
         return
@@ -112,7 +112,7 @@ async def process_duel_game_bet(message: Message, state: FSMContext):
         return
 
     partner_id = partner_info
-    text = message.text.strip()
+    text = (message.text or "").strip()
     if not text.isdigit() or int(text) <= 0:
         await message.answer("❌ Введите целое число для ставки:")
         return
@@ -153,7 +153,7 @@ async def process_duel_game_bet(message: Message, state: FSMContext):
 @router.message(AdminSettings.waiting_for_reveal_cost)
 async def process_new_reveal_cost(message: Message, state: FSMContext):
     if message.from_user.id not in ADMIN_IDS: return
-    text = message.text.strip()
+    text = (message.text or "").strip()
     if not text.isdigit() or int(text) <= 0:
         await message.answer("❌ Стоимость должна быть целым положительным числом:")
         return
@@ -166,5 +166,3 @@ async def process_new_reveal_cost(message: Message, state: FSMContext):
         [InlineKeyboardButton(text="✏️ Изменить стоимость раскрытия", callback_data="admin_change_reveal_cost")]
     ])
     await message.answer(f"✅ <b>Стоимость раскрытия успешно изменена на {new_cost} ⭐!</b>", parse_mode="HTML", reply_markup=kb)
-
-

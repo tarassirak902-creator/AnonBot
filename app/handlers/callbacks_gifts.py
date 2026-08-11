@@ -105,9 +105,9 @@ async def handle_complaint(callback: types.CallbackQuery):
 
         admin_text = (
             f"🚨 <b>НОВАЯ ЖАЛОБА ОТ ПОЛЬЗОВАТЕЛЯ!</b>\n\n"
-            f"⚠️ <b>Причина:</b> {reason}\n🕐 <b>Время:</b> {now}\n\n"
-            f"👤 <b>Нарушитель:</b>\n├ Имя: {o_name}\n├ Username: {o_un}\n└ ID: <code>{partner_id}</code>\n\n"
-            f"📩 <b>Отправитель жалобы:</b>\n├ Имя: {s_name}\n├ Username: {s_un}\n└ ID: <code>{user_id}</code>"
+            f"⚠️ <b>Причина:</b> {html.escape(reason)}\n🕐 <b>Время:</b> {now}\n\n"
+            f"👤 <b>Нарушитель:</b>\n├ Имя: {html.escape(o_name)}\n├ Username: {html.escape(o_un)}\n└ ID: <code>{partner_id}</code>\n\n"
+            f"📩 <b>Отправитель жалобы:</b>\n├ Имя: {html.escape(s_name)}\n├ Username: {html.escape(s_un)}\n└ ID: <code>{user_id}</code>"
         )
         kb = InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text="⚠️ Выдать варн", callback_data=f"log_warn_{partner_id}"), InlineKeyboardButton(text="🔇 Ограничить (24ч)", callback_data=f"log_mute_{partner_id}")],
