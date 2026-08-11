@@ -36,7 +36,7 @@ def test_online_backup_is_integrity_checked_and_rotated(tmp_path: Path) -> None:
         conn.commit()
 
     backup_dir = tmp_path / "backups"
-    first = create_database_backup(source=db_path, backup_dir=backup_dir, keep=1)
+    create_database_backup(source=db_path, backup_dir=backup_dir, keep=1)
     second = create_database_backup(source=db_path, backup_dir=backup_dir, keep=1)
 
     assert second.integrity == "ok"
@@ -61,5 +61,5 @@ async def test_health_reports_database_schema_and_disk(tmp_path: Path, monkeypat
 
     assert by_name["database"].ok is True
     assert by_name["schema"].ok is True
-    assert f"version={CURRENT_SCHEMA_VERSION}" == by_name["schema"].detail
+    assert f"version={CURRENT_SCHEMA_VERSION}/{CURRENT_SCHEMA_VERSION}" == by_name["schema"].detail
     assert "disk" in by_name
