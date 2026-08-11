@@ -11,6 +11,7 @@ def test_manual_dialog_end_creates_tokenized_rating_pair() -> None:
     assert "send_rating_prompt" in source
     assert "build_dialog_key" in source
     assert '"dialog_complete"' in source
+    assert "_record_dialog_missions" in source
 
 
 def test_timeout_dialog_end_uses_same_feedback_pipeline() -> None:
@@ -29,8 +30,15 @@ def test_legacy_partner_id_rating_is_a_tombstone_only() -> None:
     assert "устарела" in handler
 
 
-def test_current_rating_route_is_single_use_and_dialog_scoped() -> None:
+def test_current_rating_route_is_atomic_single_use_and_dialog_scoped() -> None:
     source = read("app/handlers/platform_automation_ui.py")
-    assert "consume_rating_token(token, callback.from_user.id)" in source
+    assert "consume_rating_and_save(token, callback.from_user.id, rating)" in source
     assert "pending.dialog_key" in source
     assert "record_match_quality_rating" in source
+
+
+def test_secondary_rating_side_effects_do_not_block_success_confirmation() -> None:
+    source = read("app/handlers/platform_automation_ui.py")
+    assert "Reputation is already persisted atomically" in source
+    assert "logger.exception" in source
+    assert 'await callback.answer("Оценка сохранена")' in source
