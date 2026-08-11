@@ -9,6 +9,7 @@ from . import (
     commands,
     commercial_daily_hub,
     commercial_navigation_ui,
+    dialog_ui,
     menus,
     questions,
 )
@@ -17,6 +18,11 @@ from . import (
 @router.message(F.text.in_({"💬 Чат", "🚀 Начать общение", "💬 Найти собеседника"}))
 async def route_search(message: Message, state: FSMContext) -> None:
     await menus.search_start(message, state)
+
+
+@router.message(F.text.in_({"❌ Отменить поиск", "❌  Отменить поиск"}))
+async def route_cancel_search(message: Message, state: FSMContext) -> None:
+    await menus.cancel_search_handler(message, state)
 
 
 @router.message(F.text.in_({"❓ Вопросы", "❓ Анонимные вопросы"}))
@@ -62,12 +68,12 @@ async def route_admin_panel(message: Message, state: FSMContext) -> None:
 
 @router.message(F.text.in_({"➡️ Новый", "➡️ Новый собеседник", "➡️ Следующий собеседник"}))
 async def route_next_partner(message: Message, state: FSMContext) -> None:
-    await menus.next_partner(message, state)
+    await dialog_ui.next_partner_ui(message, state)
 
 
 @router.message(F.text.in_({"⏹ Завершить", "❌ Завершить диалог"}))
 async def route_end_dialog(message: Message, state: FSMContext) -> None:
-    await menus.end_dialog(message, state)
+    await dialog_ui.end_dialog_ui(message, state)
 
 
 @router.message(F.text.in_({"🎮 Дуэль", "⚔️ Играть с собеседником"}))

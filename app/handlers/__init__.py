@@ -69,8 +69,11 @@ from . import menus
 from . import profile_achievements
 # Payment/profile entry adapters must be registered before legacy profile callbacks.
 from . import payment_entry_ui
+from . import duel_entry_ui
 from . import callbacks_profile
 from . import referrals
+# Authorize duel invitation callbacks before the legacy duel callback module.
+from . import duel_action_ui
 from . import callbacks_duels
 from . import callbacks_gifts
 from . import callbacks_broadcast
@@ -81,11 +84,15 @@ from .admin_results_ui import install_admin_result_ui
 install_moderation_notices()
 install_admin_result_ui()
 from . import question_subscription_gate
+# Entry copy that depends on the runtime bot identity must register before the legacy advertising module.
+from . import advertising_entry_ui
 from . import advertising
 from . import social_features_ui
 from . import community_ui
 # Register canonical and legacy reply-button aliases only after their target modules exist.
 from . import visible_button_aliases
+# Repair inline entry routes before generic payment/chat fallbacks.
+from . import ui_route_repairs
 # Must be registered before payments.py, whose legacy pre-checkout handler accepts all invoices.
 from . import payment_guard
 # Specific successful-payment handlers must precede the generic payment handler.

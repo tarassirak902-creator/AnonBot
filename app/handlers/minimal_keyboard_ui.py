@@ -73,9 +73,17 @@ def chat_menu() -> ReplyKeyboardMarkup:
     ])
 
 
+def cancel_search_menu() -> ReplyKeyboardMarkup:
+    return _reply([
+        [KeyboardButton(text="👻 Поймать CASPER")],
+        [KeyboardButton(text="❌ Отменить поиск")],
+    ])
+
+
 def install_minimal_keyboards() -> None:
     """Install canonical compact keyboards before handler modules import shared names."""
     for namespace in (keyboards, shared):
         namespace.main_menu = main_menu
         namespace.main_menu_with_question = main_menu_with_question
         namespace.chat_menu = chat_menu
+    shared.cancel_search_menu = cancel_search_menu
