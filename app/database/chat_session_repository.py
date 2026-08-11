@@ -1,0 +1,60 @@
+from __future__ import annotations
+
+import aiosqlite
+
+from .repository import DB_PATH
+
+
+async def end_chat(user_id: int):
+    """Atomically remove a chat pair and clear both users' session start markers.
+
+    Session timestamps are set before match notifications are delivered. If that
+    delivery fails, the chat must be torn down without leaving stale
+    ``current_chat_start`` values that could later be counted as completed chat
+    time by an unrelated action.
+    """
+    try:
+        user_id = int(user_id)
+    except (TypeError, ValueError):
+        return None
+    if user_id <= 0:
+        return None
+
+    async with aiosqlite.connect(DB_PATH, timeout=10) as conn:
+        await conn.execute("PRAGMA busy_timeout=10000")
+        await conn.execute("BEGIN IMMEDIATE")
+        try:
+            row = await (
+                await conn.execute(
+                    "SELECT partner_id FROM active_chats WHERE user_id=?",
+                    (user_id,),
+                )
+            ).fetchone()
+
+            if not row:
+                await conn.execute("DELETE FROM queues WHERE user_id=?", (user_id,))
+                await conn.execute(
+                    "UPDATE users SET current_chat_start=NULL WHERE user_id=?",
+                    (user_id,),
+                )
+                await conn.commit()
+                return None
+
+            partner_id = int(row[0])
+            await conn.execute(
+                "DELETE FROM active_chats WHERE user_id IN (?,?) OR partner_id IN (?,?)",
+                (user_id, partner_id, user_id, partner_id),
+            )
+            await conn.execute(
+                "DELETE FROM queues WHERE user_id IN (?,?)",
+                (user_id, partner_id),
+            )
+            await conn.execute(
+                "UPDATE users SET current_chat_start=NULL WHERE user_id IN (?,?)",
+                (user_id, partner_id),
+            )
+            await conn.commit()
+            return partner_id
+        except Exception:
+            await conn.rollback()
+            raise
