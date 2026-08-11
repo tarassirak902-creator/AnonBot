@@ -5,6 +5,32 @@ import aiosqlite
 from .repository import DB_PATH
 
 
+async def is_active_chat_pair(user_id: int, partner_id: int) -> bool:
+    """Return whether both reciprocal active-chat rows still describe this pair."""
+    try:
+        user_id = int(user_id)
+        partner_id = int(partner_id)
+    except (TypeError, ValueError):
+        return False
+    if user_id <= 0 or partner_id <= 0 or user_id == partner_id:
+        return False
+
+    async with aiosqlite.connect(DB_PATH, timeout=10) as conn:
+        row = await (
+            await conn.execute(
+                """
+                SELECT 1
+                FROM active_chats a
+                JOIN active_chats b
+                  ON b.user_id=a.partner_id AND b.partner_id=a.user_id
+                WHERE a.user_id=? AND a.partner_id=?
+                """,
+                (user_id, partner_id),
+            )
+        ).fetchone()
+    return row is not None
+
+
 async def end_chat(user_id: int):
     """Atomically remove a chat pair and clear both users' session start markers.
 
