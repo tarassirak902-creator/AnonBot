@@ -32,7 +32,7 @@ async def _table_exists(conn: aiosqlite.Connection, table: str) -> bool:
 
 
 async def _repair_active_chats(conn: aiosqlite.Connection) -> int:
-    """Remove invalid chat rows and clear session markers for every affected user."""
+    """Remove invalid rows without disturbing users that remain in a valid pair."""
     if not await _table_exists(conn, "active_chats"):
         return 0
 
@@ -73,12 +73,28 @@ async def _repair_active_chats(conn: aiosqlite.Connection) -> int:
     if affected_ids:
         placeholders = ",".join("?" for _ in affected_ids)
         params = tuple(sorted(affected_ids))
+        # A corrupt extra row may point at somebody who is still in a different,
+        # fully reciprocal pair. Only users left without any active row after the
+        # deletion have stale session markers and queue entries cleared.
         await conn.execute(
-            f"UPDATE users SET current_chat_start=NULL WHERE user_id IN ({placeholders})",
+            f"""
+            UPDATE users
+               SET current_chat_start=NULL
+             WHERE user_id IN ({placeholders})
+               AND NOT EXISTS (
+                    SELECT 1 FROM active_chats a WHERE a.user_id=users.user_id
+               )
+            """,
             params,
         )
         await conn.execute(
-            f"DELETE FROM queues WHERE user_id IN ({placeholders})",
+            f"""
+            DELETE FROM queues
+             WHERE user_id IN ({placeholders})
+               AND NOT EXISTS (
+                    SELECT 1 FROM active_chats a WHERE a.user_id=queues.user_id
+               )
+            """,
             params,
         )
 
