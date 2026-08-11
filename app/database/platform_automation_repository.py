@@ -33,6 +33,18 @@ async def _ensure_schema(db: aiosqlite.Connection) -> None:
         );
         CREATE INDEX IF NOT EXISTS idx_pending_dialog_ratings_user
             ON pending_dialog_ratings(rater_id, expires_at);
+
+        CREATE TABLE IF NOT EXISTS dialog_ratings (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            rater_id INTEGER NOT NULL,
+            rated_user_id INTEGER NOT NULL,
+            dialog_key TEXT NOT NULL,
+            rating INTEGER NOT NULL CHECK (rating IN (-1, 0, 1)),
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(rater_id, dialog_key)
+        );
+        CREATE INDEX IF NOT EXISTS idx_dialog_ratings_user
+            ON dialog_ratings(rated_user_id, created_at);
         """
     )
 
@@ -76,6 +88,7 @@ async def create_rating_pair(
 
 
 async def consume_rating_token(token: str, rater_id: int) -> PendingRating | None:
+    """Consume a token without storing a rating, used by the explicit skip action."""
     now_text = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
     async with aiosqlite.connect(DB_PATH, timeout=10) as db:
         await _ensure_schema(db)
@@ -98,6 +111,65 @@ async def consume_rating_token(token: str, rater_id: int) -> PendingRating | Non
             return None
         await db.commit()
     return PendingRating(str(row[0]), int(row[1]), int(row[2]), str(row[3]), str(row[4]))
+
+
+async def consume_rating_and_save(token: str, rater_id: int, rating: int) -> PendingRating | None:
+    """Atomically validate/consume a rating token and persist the reputation rating.
+
+    If any database operation fails, the transaction rolls back and the token stays
+    reusable. This avoids losing a user's one-shot rating on a transient SQLite
+    error between token consumption and rating persistence.
+    """
+    if rating not in {-1, 0, 1}:
+        return None
+    now_text = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+    async with aiosqlite.connect(DB_PATH, timeout=10) as db:
+        await _ensure_schema(db)
+        await db.execute("PRAGMA busy_timeout=10000")
+        await db.execute("BEGIN IMMEDIATE")
+        try:
+            row = await (await db.execute(
+                """SELECT token, rater_id, rated_user_id, dialog_key, expires_at
+                   FROM pending_dialog_ratings
+                   WHERE token = ? AND rater_id = ? AND consumed_at IS NULL AND expires_at >= ?""",
+                (token, rater_id, now_text),
+            )).fetchone()
+            if not row:
+                await db.rollback()
+                return None
+
+            pending = PendingRating(str(row[0]), int(row[1]), int(row[2]), str(row[3]), str(row[4]))
+            if pending.rater_id == pending.rated_user_id:
+                await db.rollback()
+                return None
+
+            inserted = await db.execute(
+                """INSERT OR IGNORE INTO dialog_ratings
+                   (rater_id, rated_user_id, dialog_key, rating)
+                   VALUES (?, ?, ?, ?)""",
+                (pending.rater_id, pending.rated_user_id, pending.dialog_key, rating),
+            )
+            if inserted.rowcount != 1:
+                await db.execute(
+                    "UPDATE pending_dialog_ratings SET consumed_at = CURRENT_TIMESTAMP WHERE token = ? AND consumed_at IS NULL",
+                    (token,),
+                )
+                await db.commit()
+                return None
+
+            consumed = await db.execute(
+                "UPDATE pending_dialog_ratings SET consumed_at = CURRENT_TIMESTAMP WHERE token = ? AND consumed_at IS NULL",
+                (token,),
+            )
+            if consumed.rowcount != 1:
+                await db.rollback()
+                return None
+
+            await db.commit()
+            return pending
+        except Exception:
+            await db.rollback()
+            raise
 
 
 async def cleanup_expired_rating_tokens() -> int:

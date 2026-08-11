@@ -3,11 +3,11 @@ from __future__ import annotations
 from aiogram import F
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
 
-from app.database.platform_automation_repository import PendingRating, consume_rating_token
+from app.database.platform_automation_repository import PendingRating, consume_rating_and_save, consume_rating_token
 from app.database.platform_match_quality_repository import record_match_quality_rating
-from app.database.platform_social_repository import add_notification, rate_dialog
+from app.database.platform_social_repository import add_notification
 
-from .shared import router
+from .shared import logger, router
 
 
 RATING_LABELS = {
@@ -51,39 +51,50 @@ async def submit_dialog_rating(callback: CallbackQuery) -> None:
         await callback.answer("Некорректная оценка.", show_alert=True)
         return
 
-    pending = await consume_rating_token(token, callback.from_user.id)
+    pending = await consume_rating_and_save(token, callback.from_user.id, rating)
     if not pending:
         await callback.answer("Эта оценка уже отправлена или устарела.", show_alert=True)
         return
 
-    saved = await rate_dialog(
-        pending.rater_id,
-        pending.rated_user_id,
-        pending.dialog_key,
-        rating,
-    )
-    if not saved:
-        await callback.answer("Оценка уже была учтена.", show_alert=True)
-        return
-
-    await record_match_quality_rating(
-        pending.rater_id,
-        pending.rated_user_id,
-        pending.dialog_key,
-        rating,
-    )
+    # Reputation is already persisted atomically. The following writes are
+    # secondary analytics/UX side effects and must never turn a successful rating
+    # into an error for the user.
+    try:
+        await record_match_quality_rating(
+            pending.rater_id,
+            pending.rated_user_id,
+            pending.dialog_key,
+            rating,
+        )
+    except Exception:
+        logger.exception(
+            "Не удалось записать match-quality rating: rater=%s dialog=%s",
+            pending.rater_id,
+            pending.dialog_key,
+        )
 
     emoji, label = RATING_LABELS[rating]
-    await add_notification(
-        pending.rated_user_id,
-        "reputation",
-        "Новая оценка диалога",
-        f"Вы получили {label} оценку после недавнего общения.",
-    )
-    await callback.message.edit_text(
-        f"{emoji} <b>Спасибо за оценку!</b>\n\nОна учтена в репутации собеседника.",
-        parse_mode="HTML",
-    )
+    try:
+        await add_notification(
+            pending.rated_user_id,
+            "reputation",
+            "Новая оценка диалога",
+            f"Вы получили {label} оценку после недавнего общения.",
+        )
+    except Exception:
+        logger.exception(
+            "Не удалось создать уведомление о рейтинге: rated_user=%s dialog=%s",
+            pending.rated_user_id,
+            pending.dialog_key,
+        )
+
+    try:
+        await callback.message.edit_text(
+            f"{emoji} <b>Спасибо за оценку!</b>\n\nОна учтена в репутации собеседника.",
+            parse_mode="HTML",
+        )
+    except Exception:
+        logger.exception("Не удалось обновить сообщение после сохранения оценки")
     await callback.answer("Оценка сохранена")
 
 

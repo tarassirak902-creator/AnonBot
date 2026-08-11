@@ -17,6 +17,7 @@ from .shared import (
     cancel_search_timer,
     cancel_unread_reminder,
     db,
+    logger,
     main_menu,
     notify_pending_question_activity,
     reveal_offer_kb,
@@ -31,13 +32,22 @@ async def _send_rating_prompts(bot, user_id: int, partner_id: int, dialog_key: s
     try:
         first, second = await create_rating_pair(user_id, partner_id, dialog_key=dialog_key)
     except Exception:
+        logger.exception("Не удалось создать rating pair: user=%s partner=%s", user_id, partner_id)
         return
     for pending in (first, second):
         try:
             await send_rating_prompt(bot, pending)
         except Exception:
-            # The token remains valid for the other participant and expires safely.
-            pass
+            logger.exception("Не удалось доставить rating prompt: user=%s", pending.rater_id)
+
+
+async def _record_dialog_missions(user_id: int, partner_id: int, dialog_key: str) -> None:
+    """Record product progression without blocking dialog teardown/navigation."""
+    for uid in (user_id, partner_id):
+        try:
+            await record_mission_event(uid, f"dialog:{dialog_key}:{uid}", "dialog_complete")
+        except Exception:
+            logger.exception("Не удалось записать mission event: user_id=%s dialog=%s", uid, dialog_key)
 
 
 async def _finish_dialog(message: Message, *, find_next: bool) -> None:
@@ -130,8 +140,7 @@ async def _finish_dialog(message: Message, *, find_next: bool) -> None:
         pass
 
     await _send_rating_prompts(message.bot, user_id, partner_id, dialog_key)
-    await record_mission_event(user_id, f"dialog:{dialog_key}:{user_id}", "dialog_complete")
-    await record_mission_event(partner_id, f"dialog:{dialog_key}:{partner_id}", "dialog_complete")
+    await _record_dialog_missions(user_id, partner_id, dialog_key)
 
     await db.log_action(user_id, "dialog_end", f"with {partner_id}")
     await notify_pending_question_activity(message.bot, user_id)
