@@ -32,6 +32,7 @@ from . import commands
 from . import service_menu
 from . import forms
 from . import admin_commands
+from . import health_ui
 from . import casper_game
 # Register guaranteed profile action entry points before feature and legacy callbacks.
 from . import profile_action_entry
