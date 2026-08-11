@@ -3,6 +3,8 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
+from app.core.navigation import PARENTS, SCREENS
+
 
 ROOT = Path(__file__).resolve().parents[1]
 APP = ROOT / "app"
@@ -192,3 +194,16 @@ def test_every_static_reply_button_has_a_registered_route() -> None:
         f"exact={missing_exact}\n"
         f"prefixes={missing_prefixes}"
     )
+
+
+def test_navigation_registry_callbacks_have_registered_routes() -> None:
+    handler_exact, handler_prefixes, _, _ = _collect_filter_contracts()
+    callbacks = {target.callback_data for target in PARENTS.values()}
+    for contract in SCREENS.values():
+        callbacks.add(contract.callback_data)
+        callbacks.add(contract.refresh_callback)
+
+    missing = sorted(
+        callback for callback in callbacks if not _covered(callback, handler_exact, handler_prefixes)
+    )
+    assert not missing, f"Navigation registry callbacks without handlers: {missing}"
