@@ -9,18 +9,13 @@ async def safe_inactivity_timer_worker(bot, user1_id: int, user2_id: int) -> Non
     """Expire only the exact reciprocal chat pair that created this timer.
 
     Match notification failures and fast partner changes can leave an old sleeping
-    task alive. The task must never count time, tear down a newer chat, send ads or
-    offer reveal unless the original pair is still active after the timeout.
+    task alive. Accounting and teardown are delegated to one database transaction,
+    so an old timer can never clear or count a newer chat between a guard check and
+    the teardown itself.
     """
     try:
         await asyncio.sleep(600)
-        if not await shared.db.is_active_chat_pair(user1_id, user2_id):
-            return
-
-        await shared.db.add_completed_chat_time(user1_id)
-        await shared.db.add_completed_chat_time(user2_id)
-        ended_partner = await shared.db.end_chat(user1_id)
-        if ended_partner != user2_id:
+        if not await shared.db.expire_chat_pair_if_active(user1_id, user2_id):
             return
 
         shared.cancel_unread_reminder(user1_id)
