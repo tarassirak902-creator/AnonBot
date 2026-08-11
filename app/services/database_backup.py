@@ -41,7 +41,7 @@ def create_database_backup(
 
     target_dir = Path(backup_dir) if backup_dir else source_path.parent / "backups"
     target_dir.mkdir(parents=True, exist_ok=True)
-    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S.%fZ")
     target = target_dir / f"bot-{stamp}.db"
     temporary = target.with_suffix(".db.tmp")
 
