@@ -72,6 +72,8 @@ from . import payment_entry_ui
 from . import duel_entry_ui
 from . import callbacks_profile
 from . import referrals
+# Authorize duel invitation callbacks before the legacy duel callback module.
+from . import duel_action_ui
 from . import callbacks_duels
 from . import callbacks_gifts
 from . import callbacks_broadcast
