@@ -90,9 +90,18 @@ def _collect_filter_contracts() -> tuple[set[str], set[str], set[str], set[str]]
     text_prefixes: set[str] = set()
 
     def collect_expr(expr: ast.AST) -> None:
+        # aiogram MagicFilter composes conditions with &, | and ~, which AST
+        # represents as BinOp/UnaryOp rather than Python BoolOp nodes.
         if isinstance(expr, ast.BoolOp):
             for value in expr.values:
                 collect_expr(value)
+            return
+        if isinstance(expr, ast.BinOp) and isinstance(expr.op, (ast.BitAnd, ast.BitOr)):
+            collect_expr(expr.left)
+            collect_expr(expr.right)
+            return
+        if isinstance(expr, ast.UnaryOp) and isinstance(expr.op, ast.Invert):
+            collect_expr(expr.operand)
             return
         if isinstance(expr, ast.Compare) and len(expr.ops) == 1 and isinstance(expr.ops[0], ast.Eq):
             left = _attr_chain(expr.left)
