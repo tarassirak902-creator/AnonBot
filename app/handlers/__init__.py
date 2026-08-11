@@ -86,6 +86,8 @@ from . import social_features_ui
 from . import community_ui
 # Register canonical and legacy reply-button aliases only after their target modules exist.
 from . import visible_button_aliases
+# Repair inline entry routes before generic payment/chat fallbacks.
+from . import ui_route_repairs
 # Must be registered before payments.py, whose legacy pre-checkout handler accepts all invoices.
 from . import payment_guard
 # Specific successful-payment handlers must precede the generic payment handler.
