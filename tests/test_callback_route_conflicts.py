@@ -7,6 +7,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 HANDLERS = ROOT / "app" / "handlers"
+INIT = HANDLERS / "__init__.py"
 
 # Duplicates in this set are deliberate compatibility/canonical adapters. Import
 # order in app.handlers.__init__ deliberately registers the canonical route first;
@@ -29,6 +30,7 @@ ALLOWED_EXACT_DUPLICATES = {
     "ads_community_channel",
     "ads_community_group",
 }
+LEGACY_DUPLICATE_BUDGET = 16
 
 
 def _attr_chain(node: ast.AST) -> str:
@@ -64,7 +66,7 @@ def _exact_values(expr: ast.AST) -> set[str]:
     return values
 
 
-def test_exact_callback_routes_do_not_conflict_unexpectedly() -> None:
+def _callback_locations() -> dict[str, list[str]]:
     locations: dict[str, list[str]] = defaultdict(list)
     for path in sorted(HANDLERS.glob("*.py")):
         tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
@@ -81,10 +83,37 @@ def test_exact_callback_routes_do_not_conflict_unexpectedly() -> None:
                     values.update(_exact_values(arg))
                 for value in values:
                     locations[value].append(f"{path.name}:{node.name}")
+    return locations
 
+
+def test_exact_callback_routes_do_not_conflict_unexpectedly() -> None:
+    locations = _callback_locations()
     conflicts = {
         value: funcs
         for value, funcs in locations.items()
         if len(funcs) > 1 and value not in ALLOWED_EXACT_DUPLICATES
     }
     assert not conflicts, f"Unexpected duplicate exact callback routes: {conflicts}"
+
+
+def test_legacy_duplicate_budget_cannot_grow() -> None:
+    locations = _callback_locations()
+    duplicates = {value for value, funcs in locations.items() if len(funcs) > 1}
+    assert len(duplicates) <= LEGACY_DUPLICATE_BUDGET, (
+        f"Legacy callback duplicate budget grew: {len(duplicates)} > {LEGACY_DUPLICATE_BUDGET}. "
+        "Prefer deleting or consolidating a legacy route instead of adding another compatibility handler."
+    )
+
+
+def test_canonical_adapters_are_imported_before_legacy_modules() -> None:
+    lines = INIT.read_text(encoding="utf-8").splitlines()
+    positions = {line.strip(): index for index, line in enumerate(lines)}
+    required_order = (
+        ("from . import payment_entry_ui", "from . import callbacks_profile"),
+        ("from . import duel_action_ui", "from . import callbacks_duels"),
+        ("from . import admin_lists_ui", "from . import callbacks_admin"),
+        ("from . import question_subscription_gate", "from . import advertising"),
+        ("from . import advertising_entry_ui", "from . import advertising"),
+    )
+    for canonical, legacy in required_order:
+        assert positions[canonical] < positions[legacy], f"{canonical} must register before {legacy}"

@@ -1,20 +1,26 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
+from typing import Awaitable, Callable
 
 import aiosqlite
 
 from . import repository as legacy_repository
 
 DB_PATH = legacy_repository.DB_PATH
-CURRENT_SCHEMA_VERSION = 3
+CURRENT_SCHEMA_VERSION = 4
+Migration = Callable[[aiosqlite.Connection], Awaitable[None]]
 
 
 @dataclass(frozen=True)
 class MatchmakingSnapshot:
     queues: tuple[tuple[int, str], ...]
     active_chats: tuple[tuple[int, int, str], ...]
+
+
+def _utc_now() -> str:
+    return datetime.now(timezone.utc).isoformat()
 
 
 async def _table_columns(conn: aiosqlite.Connection, table: str) -> set[str]:
@@ -45,7 +51,7 @@ async def _snapshot_matchmaking(path: str) -> MatchmakingSnapshot:
                         f"SELECT user_id,{created_expr} FROM queues WHERE user_id IS NOT NULL"
                     )
                 ).fetchall()
-                queues = [(int(row[0]), str(row[1] or datetime.now().isoformat())) for row in rows]
+                queues = [(int(row[0]), str(row[1] or _utc_now())) for row in rows]
 
         if await _table_exists(conn, "active_chats"):
             columns = await _table_columns(conn, "active_chats")
@@ -58,7 +64,7 @@ async def _snapshot_matchmaking(path: str) -> MatchmakingSnapshot:
                     )
                 ).fetchall()
                 active_chats = [
-                    (int(row[0]), int(row[1]), str(row[2] or datetime.now().isoformat()))
+                    (int(row[0]), int(row[1]), str(row[2] or _utc_now()))
                     for row in rows
                 ]
 
@@ -159,6 +165,71 @@ async def _create_reliability_indexes(conn: aiosqlite.Connection) -> None:
                 await conn.execute(statement)
 
 
+async def _migration_1_social_schema(conn: aiosqlite.Connection) -> None:
+    await _create_social_schema(conn)
+
+
+async def _migration_2_reliability_indexes(conn: aiosqlite.Connection) -> None:
+    await _create_reliability_indexes(conn)
+
+
+async def _migration_3_matchmaking_marker(conn: aiosqlite.Connection) -> None:
+    # Matchmaking table normalization is performed by legacy init_db before this
+    # runner. This explicit marker keeps old production databases ordered.
+    return None
+
+
+async def _migration_4_backup_audit(conn: aiosqlite.Connection) -> None:
+    await conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS backup_audit (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            created_at TEXT NOT NULL,
+            path TEXT NOT NULL,
+            size_bytes INTEGER NOT NULL,
+            integrity TEXT NOT NULL
+        )
+        """
+    )
+
+
+MIGRATIONS: tuple[tuple[int, Migration], ...] = (
+    (1, _migration_1_social_schema),
+    (2, _migration_2_reliability_indexes),
+    (3, _migration_3_matchmaking_marker),
+    (4, _migration_4_backup_audit),
+)
+
+
+async def apply_schema_migrations(conn: aiosqlite.Connection) -> list[int]:
+    await conn.execute(
+        "CREATE TABLE IF NOT EXISTS schema_migrations ("
+        "version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL)"
+    )
+    rows = await (await conn.execute("SELECT version FROM schema_migrations")).fetchall()
+    applied = {int(row[0]) for row in rows}
+    newly_applied: list[int] = []
+
+    for version, migration in MIGRATIONS:
+        if version in applied:
+            continue
+        await migration(conn)
+        await conn.execute(
+            "INSERT INTO schema_migrations(version,applied_at) VALUES (?,?)",
+            (version, _utc_now()),
+        )
+        newly_applied.append(version)
+    return newly_applied
+
+
+async def get_schema_version(path: str = DB_PATH) -> int:
+    async with aiosqlite.connect(path, timeout=10) as conn:
+        if not await _table_exists(conn, "schema_migrations"):
+            return 0
+        row = await (await conn.execute("SELECT MAX(version) FROM schema_migrations")).fetchone()
+        return int(row[0] or 0) if row else 0
+
+
 async def _restore_matchmaking(path: str, snapshot: MatchmakingSnapshot) -> None:
     async with aiosqlite.connect(path, timeout=10) as conn:
         await conn.execute("PRAGMA busy_timeout=10000")
@@ -173,16 +244,7 @@ async def _restore_matchmaking(path: str, snapshot: MatchmakingSnapshot) -> None
                 "INSERT OR REPLACE INTO active_chats(user_id,partner_id,created_at) VALUES (?,?,?)",
                 (user_id, partner_id, created_at),
             )
-        await conn.execute(
-            "CREATE TABLE IF NOT EXISTS schema_migrations ("
-            "version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL)"
-        )
-        await _create_reliability_indexes(conn)
-        await _create_social_schema(conn)
-        await conn.execute(
-            "INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES (?,?)",
-            (CURRENT_SCHEMA_VERSION, datetime.now().isoformat()),
-        )
+        await apply_schema_migrations(conn)
         await conn.commit()
 
 
