@@ -10,5 +10,7 @@ from .platform_social_repository import *
 from .chat_reveal_repository import *
 # Imported after the legacy repository so atomic balance operations shadow unsafe legacy helpers.
 from .balance_repository import *
+# Imported after legacy teardown so every handler clears stale chat session markers.
+from .chat_session_repository import *
 # Imported last so the safe, versioned init_db facade shadows repository.init_db.
 from .schema_migrations import *
