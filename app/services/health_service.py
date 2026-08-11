@@ -7,6 +7,7 @@ from pathlib import Path
 
 from app.core import config
 from app.database.repository import DB_PATH
+from app.database.schema_migrations import CURRENT_SCHEMA_VERSION
 
 
 @dataclass(frozen=True)
@@ -27,8 +28,15 @@ async def collect_health_checks(bot=None) -> list[HealthCheck]:
                 "SELECT MAX(version) FROM schema_migrations"
             ).fetchone()
         integrity_text = str(integrity[0] if integrity else "unknown")
+        schema_version = int(schema_row[0] or 0) if schema_row else 0
         checks.append(HealthCheck("database", integrity_text.lower() == "ok", integrity_text))
-        checks.append(HealthCheck("schema", bool(schema_row and schema_row[0]), f"version={schema_row[0] if schema_row else None}"))
+        checks.append(
+            HealthCheck(
+                "schema",
+                schema_version == CURRENT_SCHEMA_VERSION,
+                f"version={schema_version}/{CURRENT_SCHEMA_VERSION}",
+            )
+        )
     except Exception as exc:
         checks.append(HealthCheck("database", False, f"{type(exc).__name__}: {exc}"))
         checks.append(HealthCheck("schema", False, "unavailable"))
