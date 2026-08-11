@@ -20,6 +20,11 @@ async def route_search(message: Message, state: FSMContext) -> None:
     await menus.search_start(message, state)
 
 
+@router.message(F.text.in_({"❌ Отменить поиск", "❌  Отменить поиск"}))
+async def route_cancel_search(message: Message, state: FSMContext) -> None:
+    await menus.cancel_search_handler(message, state)
+
+
 @router.message(F.text.in_({"❓ Вопросы", "❓ Анонимные вопросы"}))
 async def route_questions(message: Message, state: FSMContext) -> None:
     await state.clear()
