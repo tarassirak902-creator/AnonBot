@@ -19,10 +19,11 @@ async def _render_profile_status(callback: CallbackQuery, *, parent: str = "prof
     vip = "Активен" if data["vip"] else "Не подключён"
     text = screen(
         "🚀 Статус CASPER",
-        intro=f"<b>{data['tier']}</b> · уровень <b>{data['level']}</b>\n{_progress_bar(int(data['progress']))} {data['progress']}%",
+        intro=f"<b>{data['level_name']}</b> · уровень <b>{data['level']}</b>\n{_progress_bar(int(data['progress']))} {data['progress']}%",
         sections=(
             section("Прогресс", (
-                metric("✨", "Опыт", f"{data['xp']}/{data['next_xp']} XP"),
+                metric("✨", "Опыт", f"{data['xp']} XP"),
+                metric("🎯", "До следующего уровня", f"{data['level_xp']}/{data['next_xp']} XP"),
                 metric("💬", "Диалогов", data["dialogs"]),
                 metric("🤝", "Контактов", data.get("contacts", 0)),
             )),
@@ -31,7 +32,7 @@ async def _render_profile_status(callback: CallbackQuery, *, parent: str = "prof
                 metric("👑", "Premium", vip),
             )),
         ),
-        footer="Уровень растёт за диалоги, активность и социальные действия. Покупка звёзд не повышает уровень.",
+        footer="Уровень и XP совпадают с разделом «Прогресс» и растут только за учтённые действия.",
     )
     kb = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="🎁 Награды", callback_data="profile_hub_rewards"), InlineKeyboardButton(text="👑 Premium", callback_data="profile_hub_premium")],
