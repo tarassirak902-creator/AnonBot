@@ -19,9 +19,12 @@ def test_profile_and_admin_expose_unified_entries() -> None:
     assert 'callback_data="admin_business_dashboard"' in admin_source
 
 
-def test_commercial_metrics_do_not_read_message_content() -> None:
+def test_commercial_status_uses_canonical_progress_without_message_content() -> None:
     source = Path("app/services/platform_commercial.py").read_text(encoding="utf-8")
-    assert "messages_count" in source
+    assert "get_progress_profile" in source
+    assert "messages_count" not in source
+    assert "chat_time_seconds" not in source
+    assert "reconnect_requests" in source
     assert "SELECT text" not in source
     assert "message_text" not in source
     assert "purchases" in source

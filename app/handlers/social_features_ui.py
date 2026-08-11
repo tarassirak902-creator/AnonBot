@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from aiogram import F
 from aiogram.fsm.context import FSMContext
-from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
+from aiogram.types import CallbackQuery
 
 from app import database as db
 from .shared import router
@@ -43,33 +43,19 @@ async def profile_daily_reward(callback: CallbackQuery, state: FSMContext) -> No
                 pass
 
 
-def rating_keyboard(partner_id: int) -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(inline_keyboard=[
-        [
-            InlineKeyboardButton(text="⭐ Отлично", callback_data=f"rate_partner:{partner_id}:1"),
-            InlineKeyboardButton(text="🙂 Нормально", callback_data=f"rate_partner:{partner_id}:0"),
-        ],
-        [InlineKeyboardButton(text="👎 Плохо", callback_data=f"rate_partner:{partner_id}:-1")],
-    ])
-
-
 @router.callback_query(F.data.startswith("rate_partner:"))
-async def rate_partner(callback: CallbackQuery) -> None:
-    try:
-        _, partner_raw, score_raw = callback.data.split(":", 2)
-        partner_id = int(partner_raw)
-        score = int(score_raw)
-    except (TypeError, ValueError):
-        await callback.answer("Оценка устарела", show_alert=True)
-        return
+async def retired_legacy_rating(callback: CallbackQuery) -> None:
+    """Close old partner-id rating buttons without trusting their embedded user id.
 
-    if partner_id == callback.from_user.id:
-        await callback.answer("Нельзя оценить себя", show_alert=True)
-        return
-
-    await db.rate_user(callback.from_user.id, partner_id, score)
-    await db.add_xp(callback.from_user.id, 5)
-    await callback.answer("Спасибо за оценку! +5 XP", show_alert=True)
+    Current ratings use single-use ``dialog_rate:*`` tokens from
+    ``platform_automation_ui``. Old Telegram messages can live for months, so the
+    route remains as a compatibility tombstone instead of executing the historical
+    non-idempotent rating/XP flow.
+    """
+    await callback.answer(
+        "Эта кнопка оценки устарела. Новые оценки появляются после завершения диалога.",
+        show_alert=True,
+    )
     try:
         await callback.message.edit_reply_markup(reply_markup=None)
     except Exception:
