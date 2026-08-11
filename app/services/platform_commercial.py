@@ -13,16 +13,6 @@ async def _table_exists(conn: aiosqlite.Connection, table: str) -> bool:
     return row is not None
 
 
-def _tier_for_level(level: int) -> str:
-    if level < 3:
-        return "Новичок"
-    if level < 6:
-        return "Активный"
-    if level < 10:
-        return "Опытный"
-    return "Легенда"
-
-
 async def load_user_commercial_status(user_id: int) -> dict[str, int | str | bool]:
     """Build the commercial profile from the same XP ledger as Progress.
 
@@ -40,10 +30,12 @@ async def load_user_commercial_status(user_id: int) -> dict[str, int | str | boo
         if not user:
             return {
                 "level": progress.level,
+                "level_name": progress.level_name,
                 "xp": progress.xp,
+                "level_xp": progress.current_level_xp,
                 "next_xp": progress.next_level_xp,
                 "progress": 0,
-                "tier": _tier_for_level(progress.level),
+                "tier": progress.level_name,
                 "stars": 0,
                 "vip": False,
                 "dialogs": 0,
@@ -66,10 +58,12 @@ async def load_user_commercial_status(user_id: int) -> dict[str, int | str | boo
         percent = max(0, min(100, int(current * 100 / required)))
         return {
             "level": progress.level,
+            "level_name": progress.level_name,
             "xp": progress.xp,
-            "next_xp": progress.next_level_xp,
+            "level_xp": current,
+            "next_xp": required,
             "progress": percent,
-            "tier": _tier_for_level(progress.level),
+            "tier": progress.level_name,
             "stars": int(user["stars_balance"] or 0),
             "vip": bool(user["is_vip"]),
             "dialogs": int(user["completed_dialogs"] or 0),
