@@ -87,9 +87,10 @@ async def test_funnel_counts_unique_users(tmp_path, monkeypatch) -> None:
     assert data.repeat_searchers == 1
 
 
-def test_growth_dashboard_points_to_product_funnel() -> None:
+def test_growth_dashboard_keeps_retention_and_adds_product_funnel() -> None:
     source = Path("app/handlers/platform_growth_ui.py").read_text(encoding="utf-8")
-    assert 'text="📈 Воронка"' in source
+    assert 'callback_data="admin_retention_from_growth"' in source
+    assert 'text="📊 Воронка"' in source
     assert 'callback_data="admin_product_funnel"' in source
 
 
