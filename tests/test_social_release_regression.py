@@ -2,16 +2,16 @@ from pathlib import Path
 
 
 INIT = Path("app/handlers/__init__.py").read_text(encoding="utf-8")
-MENUS = Path("app/handlers/menus.py").read_text(encoding="utf-8")
+PROFILE_GAMES = Path("app/handlers/profile_games_ui.py").read_text(encoding="utf-8")
 PROFILE = Path("app/handlers/profile_view.py").read_text(encoding="utf-8")
 MATCHMAKING = Path("app/database/matchmaking_repository.py").read_text(encoding="utf-8")
 SCHEMA = Path("app/database/schema_migrations.py").read_text(encoding="utf-8")
 
 
-def test_profile_keyboard_compat_is_installed_before_menus() -> None:
+def test_profile_keyboard_compat_is_installed_before_profile_games() -> None:
     assert "install_keyboard_compat()" in INIT
-    assert INIT.index("install_keyboard_compat()") < INIT.index("from . import menus")
-    assert "await hide_reply_keyboard(message)" in MENUS
+    assert INIT.index("install_keyboard_compat()") < INIT.index("from . import profile_games_ui")
+    assert "await hide_reply_keyboard(message)" in PROFILE_GAMES
 
 
 def test_profile_contains_social_progress_and_daily_reward() -> None:
