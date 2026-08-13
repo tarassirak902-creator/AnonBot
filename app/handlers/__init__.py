@@ -62,6 +62,7 @@ from . import admin_warning_ui
 from . import user_actions_ui
 from . import dialog_ui
 from . import chat_actions_ui
+from . import profile_games_ui
 from .search_ui import install_search_copy
 install_search_copy()
 from . import menus
