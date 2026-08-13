@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+from app.database.product_analytics_repository import record_product_event_safe
 from app.services.matchmaking_service import enqueue_or_match, leave_queue
 
 from . import shared
 
 
 async def _try_match_user(user_id: int) -> int | None:
+    await record_product_event_safe(user_id, "search_started")
     result = await enqueue_or_match(user_id)
     if result.recovered_rows:
         await shared.db.log_action(
@@ -13,6 +15,9 @@ async def _try_match_user(user_id: int) -> int | None:
             "matchmaking_recovered",
             f"rows={result.recovered_rows}",
         )
+    if result.partner_id:
+        await record_product_event_safe(user_id, "match_found")
+        await record_product_event_safe(result.partner_id, "match_found")
     return result.partner_id
 
 
