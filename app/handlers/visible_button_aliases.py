@@ -15,12 +15,12 @@ from . import (
 )
 
 
-@router.message(F.text.in_({"💬 Чат", "🚀 Начать общение", "💬 Найти собеседника"}))
+@router.message(F.text.in_({"💬 Чат", "🚀 Начать общение"}))
 async def route_search(message: Message, state: FSMContext) -> None:
     await menus.search_start(message, state)
 
 
-@router.message(F.text.in_({"❌ Отменить поиск", "❌  Отменить поиск"}))
+@router.message(F.text == "❌ Отменить поиск")
 async def route_cancel_search(message: Message, state: FSMContext) -> None:
     await menus.cancel_search_handler(message, state)
 
@@ -66,31 +66,26 @@ async def route_admin_panel(message: Message, state: FSMContext) -> None:
     await admin_overview_ui.admin_panel_entry(message, state)
 
 
-@router.message(F.text.in_({"➡️ Новый", "➡️ Новый собеседник", "➡️ Следующий собеседник"}))
+@router.message(F.text == "➡️ Новый")
 async def route_next_partner(message: Message, state: FSMContext) -> None:
     await dialog_ui.next_partner_ui(message, state)
 
 
-@router.message(F.text.in_({"⏹ Завершить", "❌ Завершить диалог"}))
-async def route_end_dialog(message: Message, state: FSMContext) -> None:
-    await dialog_ui.end_dialog_ui(message, state)
-
-
-@router.message(F.text.in_({"🎮 Дуэль", "⚔️ Играть с собеседником"}))
+@router.message(F.text == "🎮 Дуэль")
 async def route_duel(message: Message, state: FSMContext) -> None:
     await menus.duel_games_start_menu(message, state)
 
 
-@router.message(F.text.in_({"🎁 Подарок", "🎁 Подарить подарок"}))
+@router.message(F.text == "🎁 Подарок")
 async def route_chat_gift(message: Message) -> None:
     await menus.show_gifts(message)
 
 
-@router.message(F.text.in_({"👤 Раскрыть", "👤 Кто это?", "⭐ Кто собеседник"}))
+@router.message(F.text.in_({"👤 Раскрыть", "👤 Кто это?"}))
 async def route_reveal(message: Message) -> None:
     await menus.reveal_partner(message)
 
 
-@router.message(F.text.in_({"🚨 Жалоба", "⚠️ Пожаловаться"}))
+@router.message(F.text == "🚨 Жалоба")
 async def route_complaint(message: Message) -> None:
     await menus.complaint_menu(message)
