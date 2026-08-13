@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from app.handlers import router
-from app.handlers import callbacks_profile, chat_actions_ui, dialog_ui, menus, navigation_fallback_ui, visible_button_aliases
+from app.handlers import callbacks_profile, chat_actions_ui, dialog_ui, menus, navigation_fallback_ui, profile_games_ui, visible_button_aliases
 
 
 def _callbacks(observer) -> set[object]:
@@ -26,6 +26,21 @@ def test_extracted_chat_actions_are_canonical_runtime_handlers() -> None:
         assert canonical in callbacks
 
 
+def test_extracted_profile_and_games_are_canonical_runtime_handlers() -> None:
+    callbacks = _callbacks(router.message)
+    for legacy in (menus.profile, menus.solo_games_start_menu, menus.duel_games_start_menu, menus.search_casper_game):
+        assert legacy not in callbacks
+    for alias in (visible_button_aliases.route_profile, visible_button_aliases.route_games, visible_button_aliases.route_duel):
+        assert alias not in callbacks
+    for canonical in (
+        profile_games_ui.profile_entry,
+        profile_games_ui.solo_games_entry,
+        profile_games_ui.duel_games_entry,
+        profile_games_ui.search_casper_game_entry,
+    ):
+        assert canonical in callbacks
+
+
 def test_duplicate_legacy_main_menu_callback_is_not_live() -> None:
     callbacks = _callbacks(router.callback_query)
     assert callbacks_profile.nav_main_menu_handler not in callbacks
@@ -39,3 +54,4 @@ def test_pruning_runs_after_alias_module_is_loaded() -> None:
     assert source.index("from . import callbacks_profile") < pruning
     assert source.index("from . import visible_button_aliases") < pruning
     assert source.index("from . import chat_actions_ui") < source.index("from . import menus")
+    assert source.index("from . import profile_games_ui") < source.index("from . import menus")
