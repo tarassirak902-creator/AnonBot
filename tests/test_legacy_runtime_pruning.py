@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from app.handlers import router
-from app.handlers import callbacks_profile, dialog_ui, menus, navigation_fallback_ui
+from app.handlers import callbacks_profile, chat_actions_ui, dialog_ui, menus, navigation_fallback_ui, visible_button_aliases
 
 
 def _callbacks(observer) -> set[object]:
@@ -16,14 +16,26 @@ def test_legacy_dialog_teardown_handlers_are_not_live() -> None:
     assert dialog_ui.end_dialog_ui in callbacks
 
 
+def test_extracted_chat_actions_are_canonical_runtime_handlers() -> None:
+    callbacks = _callbacks(router.message)
+    for legacy in (menus.show_gifts, menus.reveal_partner, menus.complaint_menu):
+        assert legacy not in callbacks
+    for alias in (visible_button_aliases.route_chat_gift, visible_button_aliases.route_reveal, visible_button_aliases.route_complaint):
+        assert alias not in callbacks
+    for canonical in (chat_actions_ui.show_gifts, chat_actions_ui.reveal_partner, chat_actions_ui.complaint_menu):
+        assert canonical in callbacks
+
+
 def test_duplicate_legacy_main_menu_callback_is_not_live() -> None:
     callbacks = _callbacks(router.callback_query)
     assert callbacks_profile.nav_main_menu_handler not in callbacks
     assert navigation_fallback_ui.nav_main_menu in callbacks
 
 
-def test_pruning_is_installed_after_legacy_modules_load() -> None:
+def test_pruning_runs_after_alias_module_is_loaded() -> None:
     source = Path("app/handlers/__init__.py").read_text(encoding="utf-8")
-    pruning = source.index("install_legacy_runtime_pruning(menus=menus, callbacks_profile=callbacks_profile)")
+    pruning = source.index("install_legacy_runtime_pruning(")
     assert source.index("from . import menus") < pruning
     assert source.index("from . import callbacks_profile") < pruning
+    assert source.index("from . import visible_button_aliases") < pruning
+    assert source.index("from . import chat_actions_ui") < source.index("from . import menus")
