@@ -26,9 +26,10 @@ def test_admin_menu_has_compact_admin_label() -> None:
 
 def test_new_and_legacy_labels_are_supported() -> None:
     menus = open("app/handlers/menus.py", encoding="utf-8").read()
+    profile_games = open("app/handlers/profile_games_ui.py", encoding="utf-8").read()
     aliases = open("app/handlers/visible_button_aliases.py", encoding="utf-8").read()
     keyboards = open("app/core/keyboards.py", encoding="utf-8").read()
-    source = menus + aliases + keyboards
+    source = menus + profile_games + aliases + keyboards
     assert '"💬 Чат"' in source
     assert '"🚀 Начать общение"' in source
     assert '"👤 Профиль"' in source
