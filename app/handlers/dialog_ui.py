@@ -54,7 +54,18 @@ async def _record_dialog_completion(user_id: int, partner_id: int, dialog_key: s
             logger.exception("Не удалось записать mission event: user_id=%s dialog=%s", uid, dialog_key)
 
 
-async def _finish_dialog(message: Message, *, find_next: bool) -> None:
+async def _finish_dialog(
+    message: Message,
+    *,
+    find_next: bool,
+    show_user_result: bool = True,
+) -> None:
+    """Canonical dialog exit used by every user-facing way to leave a chat.
+
+    ``show_user_result=False`` is for flows such as /start that immediately render
+    another screen. Accounting, partner notification, ratings, missions and product
+    analytics still run exactly once.
+    """
     user_id = message.from_user.id
     cancel_search_timer(user_id)
     result = await end_chat_with_accounting(user_id)
@@ -68,12 +79,13 @@ async def _finish_dialog(message: Message, *, find_next: bool) -> None:
     if not result:
         if find_next:
             await db.remove_from_queue(user_id)
-            await message.answer(
-                screen("🔄 Ищем нового собеседника", intro="Предыдущий диалог уже завершён."),
-                parse_mode="HTML",
-            )
+            if show_user_result:
+                await message.answer(
+                    screen("🔄 Ищем нового собеседника", intro="Предыдущий диалог уже завершён."),
+                    parse_mode="HTML",
+                )
             await start_searching(message)
-        else:
+        elif show_user_result:
             await message.answer(
                 screen("🏠 Вы уже в главном меню", intro="Активного диалога сейчас нет.", footer="Начните новое общение первой кнопкой."),
                 parse_mode="HTML",
@@ -94,15 +106,16 @@ async def _finish_dialog(message: Message, *, find_next: bool) -> None:
     except Exception:
         pass
 
-    await send_brand_card(
-        message,
-        "dialog_ended",
-        screen(
-            "🔄 Ищу нового собеседника" if find_next else "👋 Диалог завершён",
-            intro="Предыдущий диалог закрыт. Новый поиск уже запускается." if find_next else "Вы завершили общение и вернулись в главное меню.",
-        ),
-        main_menu(user_id in ADMIN_IDS) if not find_next else None,
-    )
+    if show_user_result:
+        await send_brand_card(
+            message,
+            "dialog_ended",
+            screen(
+                "🔄 Ищу нового собеседника" if find_next else "👋 Диалог завершён",
+                intro="Предыдущий диалог закрыт. Новый поиск уже запускается." if find_next else "Вы завершили общение и вернулись в главное меню.",
+            ),
+            main_menu(user_id in ADMIN_IDS) if not find_next else None,
+        )
 
     try:
         from .advertising import send_ads_to_dialog_users

@@ -5,13 +5,14 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery
 
 from .profile_view import send_profile_screen
-from .shared import ADMIN_IDS, main_menu, router
+from .shared import ADMIN_IDS, main_menu, pending_invoice_message_ids, router
 
 
 @router.callback_query(F.data == "nav_main_menu")
 async def nav_main_menu(callback: CallbackQuery, state: FSMContext) -> None:
-    """Always return to a usable reply keyboard from any inline screen."""
+    """Return to a usable reply keyboard and clear transient payment UI state."""
     await state.clear()
+    pending_invoice_message_ids.pop(callback.from_user.id, None)
     await callback.answer()
     await callback.message.answer(
         "🏠 <b>Главное меню</b>\n\nВыберите нужный раздел.",
