@@ -15,6 +15,11 @@ from . import (
 )
 
 
+# This module intentionally owns only historical/short labels that are not already
+# registered by the canonical feature modules. Do not add current keyboard labels
+# here: duplicate aiogram routes depend on import order and make UX behavior drift.
+
+
 @router.message(F.text.in_({"💬 Чат", "🚀 Начать общение"}))
 async def route_search(message: Message, state: FSMContext) -> None:
     await menus.search_start(message, state)
@@ -31,17 +36,17 @@ async def route_questions(message: Message, state: FSMContext) -> None:
     await questions._send_questions_home(message, state)
 
 
-@router.message(F.text.in_({"🎮 Игры", "🎮 Мини-игры", "Мини игры"}))
+@router.message(F.text == "🎮 Игры")
 async def route_games(message: Message, state: FSMContext) -> None:
     await menus.solo_games_start_menu(message, state)
 
 
-@router.message(F.text.in_({"👤 Профиль", "👤 Моя анкета", "⚙️ Профиль"}))
+@router.message(F.text == "👤 Профиль")
 async def route_profile(message: Message, state: FSMContext) -> None:
     await menus.profile(message, state)
 
 
-@router.message(F.text.in_({"🎁 Друзья", "🎁 Пригласить друга", "👥 Пригласить друга", "🔗 Пригласить друга"}))
+@router.message(F.text == "🎁 Друзья")
 async def route_invite(message: Message, state: FSMContext) -> None:
     await commands.invite_friend(message, state)
 
