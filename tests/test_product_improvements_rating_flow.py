@@ -11,7 +11,7 @@ def test_manual_dialog_end_creates_tokenized_rating_pair() -> None:
     assert "send_rating_prompt" in source
     assert "build_dialog_key" in source
     assert '"dialog_complete"' in source
-    assert "_record_dialog_missions" in source
+    assert "_record_dialog_completion" in source
 
 
 def test_timeout_dialog_end_uses_same_feedback_pipeline() -> None:
