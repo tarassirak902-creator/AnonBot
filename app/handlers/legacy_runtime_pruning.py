@@ -24,13 +24,20 @@ def install_legacy_runtime_pruning(*, menus: Any, callbacks_profile: Any, visibl
         menus.show_gifts,
         menus.reveal_partner,
         menus.complaint_menu,
+        menus.profile,
+        menus.solo_games_start_menu,
+        menus.duel_games_start_menu,
+        menus.search_casper_game,
     ]
     if visible_button_aliases is not None:
-        message_callbacks += [
+        message_callbacks.extend([
             visible_button_aliases.route_chat_gift,
             visible_button_aliases.route_reveal,
             visible_button_aliases.route_complaint,
-        ]
+            visible_button_aliases.route_profile,
+            visible_button_aliases.route_games,
+            visible_button_aliases.route_duel,
+        ])
     return {
         "message_handlers": _remove_callbacks(router.message, message_callbacks),
         "callback_handlers": _remove_callbacks(router.callback_query, (callbacks_profile.nav_main_menu_handler,)),
