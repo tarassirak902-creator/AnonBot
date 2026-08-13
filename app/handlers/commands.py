@@ -27,24 +27,13 @@ async def cmd_start(message: Message, command: CommandObject, state: FSMContext)
     await delete_search_card(message.bot, user_id)
     await db.remove_from_queue(user_id)
 
-    # /start также служит безопасным перезапуском пользовательской сессии.
-    partner_id = await db.get_partner(user_id)
-    if partner_id:
-        await db.add_completed_chat_time(user_id)
-        await db.add_completed_chat_time(partner_id)
-        await db.end_chat(user_id)
-        cancel_inactivity_timer(user_id, partner_id)
-        cancel_unread_reminder(user_id)
-        cancel_unread_reminder(partner_id)
-        try:
-            await message.bot.send_message(
-                partner_id,
-                "👻 <b>CASPER</b>\n\nСобеседник перезапустил бота. Диалог завершён.",
-                parse_mode="HTML",
-                reply_markup=main_menu(partner_id in ADMIN_IDS),
-            )
-        except Exception:
-            pass
+    # /start — это тоже выход из активного диалога. Используем тот же lifecycle,
+    # что и кнопка завершения: атомарный учёт обоих участников, rating, missions,
+    # analytics и follow-up. Отдельную карточку завершения не показываем, потому
+    # что ниже сразу открывается главный экран.
+    if await db.get_partner(user_id):
+        from .dialog_ui import _finish_dialog
+        await _finish_dialog(message, find_next=False, show_user_result=False)
 
     await db.refresh_user_session(
         user_id,
@@ -157,37 +146,15 @@ async def invite_friend(message: Message, state: FSMContext):
 
 @router.message(F.text.in_({"↩️ Назад", "↩️ Выход"}))
 async def back_to_main(message: Message, state: FSMContext):
+    """One back/exit action with the same lifecycle as explicit dialog end."""
     await state.clear()
     user_id = message.from_user.id
     cancel_search_timer(user_id)
     await delete_search_card(message.bot, user_id)
     await db.remove_from_queue(user_id)
-    
-    await db.add_completed_chat_time(user_id)
-    partner_id = await db.end_chat(user_id)
-    if partner_id:
-        await db.add_completed_chat_time(partner_id)
-        cancel_inactivity_timer(user_id, partner_id)
-        cancel_unread_reminder(user_id)
-        cancel_unread_reminder(partner_id)
-        try:
-            await message.bot.send_message(partner_id, "Собеседник завершил общение.", reply_markup=main_menu(partner_id in ADMIN_IDS))
-            await message.answer("Вы завершили диалог.", reply_markup=main_menu(user_id in ADMIN_IDS))
-            from .advertising import send_ads_to_dialog_users
-            await send_ads_to_dialog_users(message.bot, user_id, partner_id, f"manual:{min(user_id, partner_id)}:{max(user_id, partner_id)}:{int(datetime.now().timestamp())}")
-            await message.bot.send_message(partner_id, "Хотите узнать, с кем вы только что общались?", reply_markup=reveal_offer_kb(user_id))
-            await message.answer("Хотите узнать, с кем вы только что общались?", reply_markup=reveal_offer_kb(partner_id))
-        except Exception:
-            pass
-    else:
-        is_admin = user_id in ADMIN_IDS
-        await send_brand_card(
-            message,
-            "main_menu",
-            "👻 <b>CASPER</b>\n\nВыберите следующее действие.",
-            main_menu(is_admin),
-        )
 
+    from .dialog_ui import _finish_dialog
+    await _finish_dialog(message, find_next=False)
 
 
 @router.message(Command("paysupport"))
