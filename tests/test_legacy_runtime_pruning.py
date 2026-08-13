@@ -26,10 +26,15 @@ def test_extracted_chat_actions_are_canonical_runtime_handlers() -> None:
         assert not hasattr(visible_button_aliases, removed_alias)
 
 
-def test_extracted_profile_and_games_are_canonical_runtime_handlers() -> None:
+def test_extracted_profile_and_games_are_physically_removed_from_menus() -> None:
     callbacks = _callbacks(router.message)
-    for legacy in (menus.profile, menus.solo_games_start_menu, menus.duel_games_start_menu, menus.search_casper_game):
-        assert legacy not in callbacks
+    for removed_name in (
+        "profile",
+        "solo_games_start_menu",
+        "duel_games_start_menu",
+        "search_casper_game",
+    ):
+        assert not hasattr(menus, removed_name)
     for canonical in (
         profile_games_ui.profile_entry,
         profile_games_ui.solo_games_entry,
