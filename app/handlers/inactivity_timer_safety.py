@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 
 from app.database.platform_automation_repository import build_dialog_key, create_rating_pair
 from app.database.platform_missions_repository import record_mission_event
+from app.database.product_analytics_repository import record_product_event_safe
 
 from . import shared
 
@@ -27,6 +28,8 @@ async def _post_dialog_feedback(bot, user1_id: int, user2_id: int, dialog_key: s
         )
 
     for uid in (user1_id, user2_id):
+        await record_product_event_safe(uid, "dialog_ended")
+        await record_product_event_safe(uid, "dialog_completed")
         try:
             await record_mission_event(uid, f"dialog:{dialog_key}:{uid}", "dialog_complete")
         except Exception:
@@ -34,13 +37,7 @@ async def _post_dialog_feedback(bot, user1_id: int, user2_id: int, dialog_key: s
 
 
 async def safe_inactivity_timer_worker(bot, user1_id: int, user2_id: int) -> None:
-    """Expire only the exact reciprocal chat pair that created this timer.
-
-    Match notification failures and fast partner changes can leave an old sleeping
-    task alive. Accounting and teardown are delegated to one database transaction,
-    so an old timer can never clear or count a newer chat between a guard check and
-    the teardown itself.
-    """
+    """Expire only the exact reciprocal chat pair that created this timer."""
     try:
         await asyncio.sleep(600)
         if not await shared.db.expire_chat_pair_if_active(user1_id, user2_id):
@@ -54,25 +51,16 @@ async def safe_inactivity_timer_worker(bot, user1_id: int, user2_id: int) -> Non
             try:
                 await bot.send_message(
                     uid,
-                    "⌛ <b>Диалог завершён из-за неактивности (10 минут).</b>\n\n"
-                    "Можете начать новый поиск!",
+                    "⌛ <b>Диалог завершён из-за неактивности (10 минут).</b>\n\nМожете начать новый поиск!",
                     reply_markup=shared.main_menu(uid in shared.ADMIN_IDS),
                     parse_mode="HTML",
                 )
             except Exception:
-                shared.logger.exception(
-                    "Не удалось уведомить о таймауте: user_id=%s", uid
-                )
+                shared.logger.exception("Не удалось уведомить о таймауте: user_id=%s", uid)
 
         try:
             from .advertising import send_ads_to_dialog_users
-
-            await send_ads_to_dialog_users(
-                bot,
-                user1_id,
-                user2_id,
-                f"timeout:{dialog_key}",
-            )
+            await send_ads_to_dialog_users(bot, user1_id, user2_id, f"timeout:{dialog_key}")
         except Exception:
             shared.logger.exception(
                 "Не удалось обработать рекламу после таймаута: user1=%s user2=%s",
@@ -88,10 +76,7 @@ async def safe_inactivity_timer_worker(bot, user1_id: int, user2_id: int) -> Non
                     reply_markup=shared.reveal_offer_kb(partner_id),
                 )
             except Exception:
-                shared.logger.exception(
-                    "Не удалось отправить reveal-offer после таймаута: user_id=%s",
-                    uid,
-                )
+                shared.logger.exception("Не удалось отправить reveal-offer после таймаута: user_id=%s", uid)
             await shared.notify_pending_question_activity(bot, uid)
 
         await _post_dialog_feedback(bot, user1_id, user2_id, dialog_key)
