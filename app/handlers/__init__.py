@@ -5,8 +5,6 @@ from .keyboard_compat import install_keyboard_compat
 from .matchmaking_v2_adapter import install_matchmaking_v2
 from .inactivity_timer_safety import install_inactivity_timer_safety
 
-# Canonical compact reply keyboards and compatibility hooks must be installed
-# before modules copy names from shared.
 install_minimal_keyboards()
 install_keyboard_compat()
 install_matchmaking_v2()
@@ -21,7 +19,6 @@ from .question_delivery_ui import install_question_delivery_ui
 from .question_details_ui import install_question_details_ui
 from .admin_card_ui import install_admin_card_ui
 
-# Install UI/service boundaries before callback modules import shared symbols.
 initialize_question_module(questions)
 install_question_entry_ui()
 install_question_copy_ui()
@@ -64,6 +61,7 @@ from . import admin_confirmation_ui
 from . import admin_warning_ui
 from . import user_actions_ui
 from . import dialog_ui
+from . import chat_actions_ui
 from .search_ui import install_search_copy
 install_search_copy()
 from . import menus
@@ -71,8 +69,6 @@ from . import profile_achievements
 from . import payment_entry_ui
 from . import duel_entry_ui
 from . import callbacks_profile
-from .legacy_runtime_pruning import install_legacy_runtime_pruning
-install_legacy_runtime_pruning(menus=menus, callbacks_profile=callbacks_profile)
 from . import referrals
 from . import duel_action_ui
 from . import callbacks_duels
@@ -89,6 +85,12 @@ from . import advertising
 from . import social_features_ui
 from . import community_ui
 from . import visible_button_aliases
+from .legacy_runtime_pruning import install_legacy_runtime_pruning
+install_legacy_runtime_pruning(
+    menus=menus,
+    callbacks_profile=callbacks_profile,
+    visible_button_aliases=visible_button_aliases,
+)
 from . import ui_route_repairs
 from . import payment_guard
 from . import duel_creation_payments

@@ -32,10 +32,10 @@ def test_action_cooldown_is_atomic():
 
 
 def test_growth_routes_are_registered_before_legacy_handlers():
-    source = read("app/handlers/__init__.py")
-    growth = source.index("from . import platform_growth_ui")
-    callbacks = source.index("from . import callbacks_profile")
-    chat = source.index("from . import chat")
+    lines = read("app/handlers/__init__.py").splitlines()
+    growth = lines.index("from . import platform_growth_ui")
+    callbacks = lines.index("from . import callbacks_profile")
+    chat = lines.index("from . import chat")
     assert growth < callbacks < chat
 
 
