@@ -20,18 +20,16 @@ def test_extracted_chat_actions_are_canonical_runtime_handlers() -> None:
     callbacks = _callbacks(router.message)
     for legacy in (menus.show_gifts, menus.reveal_partner, menus.complaint_menu):
         assert legacy not in callbacks
-    for alias in (visible_button_aliases.route_chat_gift, visible_button_aliases.route_reveal, visible_button_aliases.route_complaint):
-        assert alias not in callbacks
     for canonical in (chat_actions_ui.show_gifts, chat_actions_ui.reveal_partner, chat_actions_ui.complaint_menu):
         assert canonical in callbacks
+    for removed_alias in ("route_chat_gift", "route_reveal", "route_complaint"):
+        assert not hasattr(visible_button_aliases, removed_alias)
 
 
 def test_extracted_profile_and_games_are_canonical_runtime_handlers() -> None:
     callbacks = _callbacks(router.message)
     for legacy in (menus.profile, menus.solo_games_start_menu, menus.duel_games_start_menu, menus.search_casper_game):
         assert legacy not in callbacks
-    for alias in (visible_button_aliases.route_profile, visible_button_aliases.route_games, visible_button_aliases.route_duel):
-        assert alias not in callbacks
     for canonical in (
         profile_games_ui.profile_entry,
         profile_games_ui.solo_games_entry,
@@ -39,6 +37,8 @@ def test_extracted_profile_and_games_are_canonical_runtime_handlers() -> None:
         profile_games_ui.search_casper_game_entry,
     ):
         assert canonical in callbacks
+    for removed_alias in ("route_profile", "route_games", "route_duel"):
+        assert not hasattr(visible_button_aliases, removed_alias)
 
 
 def test_duplicate_legacy_main_menu_callback_is_not_live() -> None:
@@ -47,11 +47,16 @@ def test_duplicate_legacy_main_menu_callback_is_not_live() -> None:
     assert navigation_fallback_ui.nav_main_menu in callbacks
 
 
-def test_pruning_runs_after_alias_module_is_loaded() -> None:
+def test_pruning_runs_after_legacy_modules_load() -> None:
     source = Path("app/handlers/__init__.py").read_text(encoding="utf-8")
     pruning = source.index("install_legacy_runtime_pruning(")
     assert source.index("from . import menus") < pruning
     assert source.index("from . import callbacks_profile") < pruning
-    assert source.index("from . import visible_button_aliases") < pruning
     assert source.index("from . import chat_actions_ui") < source.index("from . import menus")
     assert source.index("from . import profile_games_ui") < source.index("from . import menus")
+
+
+def test_compatibility_router_no_longer_owns_canonical_feature_labels() -> None:
+    source = Path("app/handlers/visible_button_aliases.py").read_text(encoding="utf-8")
+    for name in ("route_chat_gift", "route_reveal", "route_complaint", "route_profile", "route_games", "route_duel"):
+        assert f"def {name}" not in source

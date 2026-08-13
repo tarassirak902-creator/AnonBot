@@ -17,7 +17,7 @@ def _remove_callbacks(observer: Any, callbacks: Iterable[Any]) -> int:
     return before - len(observer.handlers)
 
 
-def install_legacy_runtime_pruning(*, menus: Any, callbacks_profile: Any, visible_button_aliases: Any | None = None) -> dict[str, int]:
+def install_legacy_runtime_pruning(*, menus: Any, callbacks_profile: Any) -> dict[str, int]:
     message_callbacks = [
         menus.next_partner,
         menus.end_dialog,
@@ -29,15 +29,6 @@ def install_legacy_runtime_pruning(*, menus: Any, callbacks_profile: Any, visibl
         menus.duel_games_start_menu,
         menus.search_casper_game,
     ]
-    if visible_button_aliases is not None:
-        message_callbacks.extend([
-            visible_button_aliases.route_chat_gift,
-            visible_button_aliases.route_reveal,
-            visible_button_aliases.route_complaint,
-            visible_button_aliases.route_profile,
-            visible_button_aliases.route_games,
-            visible_button_aliases.route_duel,
-        ])
     return {
         "message_handlers": _remove_callbacks(router.message, message_callbacks),
         "callback_handlers": _remove_callbacks(router.callback_query, (callbacks_profile.nav_main_menu_handler,)),
