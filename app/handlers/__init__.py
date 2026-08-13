@@ -36,7 +36,6 @@ from . import forms
 from . import admin_commands
 from . import health_ui
 from . import casper_game
-# Register guaranteed profile action entry points before feature and legacy callbacks.
 from . import profile_action_entry
 from . import events_audit_ui
 from . import navigation_integrity_ui
@@ -55,7 +54,6 @@ from . import platform_personal_goals_ui
 from . import platform_reactivation_ui
 from . import platform_match_quality_ui
 from . import navigation_fallback_ui
-# Unified admin and user entry screens must be registered before legacy handlers.
 from . import admin_overview_ui
 from . import platform_dashboard_ui
 from . import history_moderation_ui
@@ -70,35 +68,29 @@ from .search_ui import install_search_copy
 install_search_copy()
 from . import menus
 from . import profile_achievements
-# Payment/profile entry adapters must be registered before legacy profile callbacks.
 from . import payment_entry_ui
 from . import duel_entry_ui
 from . import callbacks_profile
+from .legacy_runtime_pruning import install_legacy_runtime_pruning
+install_legacy_runtime_pruning(menus=menus, callbacks_profile=callbacks_profile)
 from . import referrals
-# Authorize duel invitation callbacks before the legacy duel callback module.
 from . import duel_action_ui
 from . import callbacks_duels
 from . import callbacks_gifts
 from . import callbacks_broadcast
 from . import callbacks_admin
-# Patch presentation-only moderation boundaries after the legacy module is loaded.
 from .moderation_notices_ui import install_moderation_notices
 from .admin_results_ui import install_admin_result_ui
 install_moderation_notices()
 install_admin_result_ui()
 from . import question_subscription_gate
-# Entry copy that depends on the runtime bot identity must register before the legacy advertising module.
 from . import advertising_entry_ui
 from . import advertising
 from . import social_features_ui
 from . import community_ui
-# Register canonical and legacy reply-button aliases only after their target modules exist.
 from . import visible_button_aliases
-# Repair inline entry routes before generic payment/chat fallbacks.
 from . import ui_route_repairs
-# Must be registered before payments.py, whose legacy pre-checkout handler accepts all invoices.
 from . import payment_guard
-# Specific successful-payment handlers must precede the generic payment handler.
 from . import duel_creation_payments
 from . import duel_payments
 from . import atomic_question_payments
