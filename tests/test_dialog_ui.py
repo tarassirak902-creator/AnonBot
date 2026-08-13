@@ -22,7 +22,7 @@ def test_dialog_copy_uses_shared_screen_format() -> None:
 def test_dialog_logic_keeps_cleanup_and_followup_calls() -> None:
     for call in (
         "cancel_search_timer(user_id)",
-        "await db.end_chat(user_id)",
+        "await end_chat_with_accounting(user_id)",
         "cancel_inactivity_timer(user_id, partner_id)",
         "await send_ads_to_dialog_users(",
         "await notify_pending_question_activity(message.bot, user_id)",
