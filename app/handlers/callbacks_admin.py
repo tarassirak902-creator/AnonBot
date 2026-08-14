@@ -2,7 +2,7 @@ from .shared import *
 from pathlib import Path
 import html
 from app.core.config import BASE_DIR
-from .menus import admin_users_menu_kb
+from .admin_users import admin_users_menu_kb
 
 
 def _admin_name(user) -> str:

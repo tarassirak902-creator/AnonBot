@@ -7,17 +7,16 @@ MENUS = (HANDLERS / "menus.py").read_text(encoding="utf-8")
 BROADCAST = (HANDLERS / "callbacks_broadcast.py").read_text(encoding="utf-8")
 BANNED_WORDS = (HANDLERS / "admin_banned_words.py").read_text(encoding="utf-8")
 ADMIN_GIFTS = (HANDLERS / "admin_gifts.py").read_text(encoding="utf-8")
+ADMIN_USERS = (HANDLERS / "admin_users.py").read_text(encoding="utf-8")
 ALIASES = (HANDLERS / "visible_button_aliases.py").read_text(encoding="utf-8")
 ROUTES = "\n".join(path.read_text(encoding="utf-8") for path in HANDLERS.glob("*.py"))
 INIT = (HANDLERS / "__init__.py").read_text(encoding="utf-8")
 
 
 def test_full_menu_handler_module_is_present() -> None:
-    for handler in (
-        "async def admin_stats",
-        "async def admin_withdraw_requests",
-    ):
-        assert handler in MENUS
+    assert "async def admin_stats" in ADMIN_USERS
+    assert "async def admin_stats" not in MENUS
+    assert "async def admin_withdraw_requests" in MENUS
     assert "async def broadcast_start" in BROADCAST
     assert "async def broadcast_start" not in MENUS
     assert "async def banned_words" in BANNED_WORDS
