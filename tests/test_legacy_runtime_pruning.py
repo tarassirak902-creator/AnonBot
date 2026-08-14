@@ -8,20 +8,26 @@ def _callbacks(observer) -> set[object]:
     return {getattr(handler, "callback", None) for handler in observer.handlers}
 
 
-def test_legacy_dialog_teardown_handlers_are_not_live() -> None:
+def test_legacy_dialog_and_chat_actions_are_physically_removed_from_menus() -> None:
     callbacks = _callbacks(router.message)
-    assert menus.next_partner not in callbacks
-    assert menus.end_dialog not in callbacks
-    assert dialog_ui.next_partner_ui in callbacks
-    assert dialog_ui.end_dialog_ui in callbacks
+    for removed_name in (
+        "next_partner",
+        "end_dialog",
+        "show_gifts",
+        "reveal_partner",
+        "complaint_menu",
+    ):
+        assert not hasattr(menus, removed_name)
 
-
-def test_extracted_chat_actions_are_canonical_runtime_handlers() -> None:
-    callbacks = _callbacks(router.message)
-    for legacy in (menus.show_gifts, menus.reveal_partner, menus.complaint_menu):
-        assert legacy not in callbacks
-    for canonical in (chat_actions_ui.show_gifts, chat_actions_ui.reveal_partner, chat_actions_ui.complaint_menu):
+    for canonical in (
+        dialog_ui.next_partner_ui,
+        dialog_ui.end_dialog_ui,
+        chat_actions_ui.show_gifts,
+        chat_actions_ui.reveal_partner,
+        chat_actions_ui.complaint_menu,
+    ):
         assert canonical in callbacks
+
     for removed_alias in ("route_chat_gift", "route_reveal", "route_complaint"):
         assert not hasattr(visible_button_aliases, removed_alias)
 
@@ -59,6 +65,12 @@ def test_pruning_runs_after_legacy_modules_load() -> None:
     assert source.index("from . import callbacks_profile") < pruning
     assert source.index("from . import chat_actions_ui") < source.index("from . import menus")
     assert source.index("from . import profile_games_ui") < source.index("from . import menus")
+
+
+def test_message_legacy_pruning_is_retired() -> None:
+    source = Path("app/handlers/legacy_runtime_pruning.py").read_text(encoding="utf-8")
+    assert "MESSAGE_LEGACY_NAMES" not in source
+    assert '"message_handlers": 0' in source
 
 
 def test_compatibility_router_no_longer_owns_canonical_feature_labels() -> None:

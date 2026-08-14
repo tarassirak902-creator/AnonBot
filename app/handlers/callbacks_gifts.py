@@ -1,5 +1,5 @@
 from .shared import *
-from .menus import show_gifts
+from .chat_actions_ui import show_gifts
 
 
 @router.callback_query(F.data.startswith("offer_reveal_"))

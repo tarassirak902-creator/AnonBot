@@ -6,17 +6,6 @@ from typing import Any
 from .shared import router
 
 
-MESSAGE_LEGACY_NAMES = (
-    "next_partner",
-    "end_dialog",
-    "show_gifts",
-    "reveal_partner",
-    "complaint_menu",
-    "profile",
-    "solo_games_start_menu",
-    "duel_games_start_menu",
-    "search_casper_game",
-)
 CALLBACK_LEGACY_NAMES = ("nav_main_menu_handler",)
 
 
@@ -36,11 +25,11 @@ def _remove_callbacks(observer: Any, callbacks: Iterable[Any]) -> int:
 
 
 def install_legacy_runtime_pruning(*, menus: Any, callbacks_profile: Any) -> dict[str, int]:
+    # Message-handler migrations are now physical source deletions. Keep the
+    # legacy return key for compatibility with startup diagnostics until the
+    # remaining callback duplicate is removed as well.
     return {
-        "message_handlers": _remove_callbacks(
-            router.message,
-            _existing_callbacks(menus, MESSAGE_LEGACY_NAMES),
-        ),
+        "message_handlers": 0,
         "callback_handlers": _remove_callbacks(
             router.callback_query,
             _existing_callbacks(callbacks_profile, CALLBACK_LEGACY_NAMES),
