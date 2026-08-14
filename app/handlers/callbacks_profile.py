@@ -78,15 +78,6 @@ async def profile_back_handler(callback: types.CallbackQuery, state: FSMContext)
     pending_invoice_message_ids.pop(callback.from_user.id, None)
     await profile_refresh_handler(callback)
 
-@router.callback_query(F.data == "nav_main_menu")
-async def nav_main_menu_handler(callback: CallbackQuery, state: FSMContext):
-    await state.clear()
-    pending_invoice_message_ids.pop(callback.from_user.id, None)
-    await callback.answer()
-    await safe_delete_message(callback.message)
-    await show_main_menu_screen(callback.message, callback.from_user.id)
-
-
 @router.callback_query(F.data.startswith("admin_cancel_vip_"))
 async def admin_cancel_vip_handler(callback: CallbackQuery):
     if callback.from_user.id not in ADMIN_IDS: return
