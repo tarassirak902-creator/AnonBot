@@ -52,25 +52,21 @@ def test_extracted_profile_and_games_are_physically_removed_from_menus() -> None
         assert not hasattr(visible_button_aliases, removed_alias)
 
 
-def test_duplicate_legacy_main_menu_callback_is_not_live() -> None:
+def test_duplicate_legacy_main_menu_callback_is_physically_removed() -> None:
     callbacks = _callbacks(router.callback_query)
-    assert callbacks_profile.nav_main_menu_handler not in callbacks
+    assert not hasattr(callbacks_profile, "nav_main_menu_handler")
     assert navigation_fallback_ui.nav_main_menu in callbacks
 
 
-def test_pruning_runs_after_legacy_modules_load() -> None:
+def test_runtime_pruning_layer_is_fully_retired() -> None:
     source = Path("app/handlers/__init__.py").read_text(encoding="utf-8")
-    pruning = source.index("install_legacy_runtime_pruning(")
-    assert source.index("from . import menus") < pruning
-    assert source.index("from . import callbacks_profile") < pruning
+    assert "legacy_runtime_pruning" not in source
+    assert "install_legacy_runtime_pruning" not in source
+    assert not Path("app/handlers/legacy_runtime_pruning.py").exists()
+
     assert source.index("from . import chat_actions_ui") < source.index("from . import menus")
     assert source.index("from . import profile_games_ui") < source.index("from . import menus")
-
-
-def test_message_legacy_pruning_is_retired() -> None:
-    source = Path("app/handlers/legacy_runtime_pruning.py").read_text(encoding="utf-8")
-    assert "MESSAGE_LEGACY_NAMES" not in source
-    assert '"message_handlers": 0' in source
+    assert "from . import callbacks_profile" in source
 
 
 def test_compatibility_router_no_longer_owns_canonical_feature_labels() -> None:
