@@ -3,6 +3,7 @@ from pathlib import Path
 HANDLERS = Path("app/handlers")
 MENUS = (HANDLERS / "menus.py").read_text(encoding="utf-8")
 USERS = (HANDLERS / "admin_users.py").read_text(encoding="utf-8")
+CALLBACKS_ADMIN = (HANDLERS / "callbacks_admin.py").read_text(encoding="utf-8")
 INIT = (HANDLERS / "__init__.py").read_text(encoding="utf-8")
 
 
@@ -33,6 +34,11 @@ def test_admin_user_routes_and_fsm_are_canonical() -> None:
 
 def test_admin_users_register_before_menus() -> None:
     assert INIT.index("from . import admin_users") < INIT.index("from . import menus")
+
+
+def test_callbacks_admin_imports_canonical_user_menu() -> None:
+    assert "from .admin_users import admin_users_menu_kb" in CALLBACKS_ADMIN
+    assert "from .menus import admin_users_menu_kb" not in CALLBACKS_ADMIN
 
 
 def test_unrelated_admin_flows_stay_in_menus() -> None:
