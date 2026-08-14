@@ -65,6 +65,7 @@ from . import chat_actions_ui
 from . import profile_games_ui
 from .search_ui import install_search_copy
 install_search_copy()
+from . import admin_banned_words
 from . import menus
 from . import profile_achievements
 from . import payment_entry_ui
