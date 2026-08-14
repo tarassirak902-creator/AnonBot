@@ -107,33 +107,6 @@ async def view_logs(message: Message, state: FSMContext):
 
 
 # ===== Входы из новой inline-админки =====
-@router.callback_query(F.data == "admin_open_stats")
-async def admin_open_stats_callback(callback: CallbackQuery, state: FSMContext):
-    if callback.from_user.id not in ADMIN_IDS:
-        return
-    await state.clear()
-    await callback.answer()
-    stats = await db.get_statistics()
-    text = (
-        "📊 <b>Статистика и пользователи</b>\n\n"
-        "👥 <b>Пользователи</b>\n"
-        f"├ Всего: <b>{stats['total_users']}</b>\n"
-        f"├ Новых за сегодня: <b>{stats['new_today']}</b>\n"
-        f"├ Активных VIP: <b>{stats['active_vip_users']}</b>\n"
-        f"└ Куплено VIP-подписок: <b>{stats['vip_purchases']}</b>\n\n"
-        "💬 <b>Общение</b>\n"
-        f"├ В очереди: <b>{stats['queue_count']}</b>\n"
-        f"└ Активных диалогов: <b>{stats['active_chats']}</b>\n\n"
-        "🎁 <b>Активность и платежи</b>\n"
-        f"├ Отправлено подарков: <b>{stats['total_gifts_sent']}</b>\n"
-        f"├ Подарков за сутки: <b>{stats['gifts_today']}</b>\n"
-        f"├ Получено звёзд: <b>{stats['total_stars']}</b>\n"
-        f"├ Раскрытий: <b>{stats['reveal_count']}</b>\n"
-        f"└ Жалоб: <b>{stats['total_complaints']}</b>"
-    )
-    await safe_delete_message(callback.message)
-    await callback.message.answer(text, parse_mode="HTML", reply_markup=admin_users_menu_kb())
-
 @router.callback_query(F.data == "admin_open_broadcast")
 async def admin_open_broadcast_callback(callback: CallbackQuery, state: FSMContext):
     if callback.from_user.id not in ADMIN_IDS:
