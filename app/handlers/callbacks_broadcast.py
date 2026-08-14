@@ -1,5 +1,164 @@
 from .shared import *
 
+
+@router.message(F.text == "📨 Рассылка")
+async def broadcast_start(message: Message, state: FSMContext):
+    if message.from_user.id not in ADMIN_IDS:
+        return
+    await state.clear()
+    kb = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="↩️ Назад", callback_data="admin_back_to_panel")]
+        ]
+    )
+    await message.answer(
+        "Отправьте сообщение для рассылки (текст, фото, видео, голосовое и т.д.):",
+        reply_markup=kb,
+    )
+    await state.set_state(Broadcast.waiting_for_message)
+
+
+def broadcast_preview_kb(button_text=None, button_url=None):
+    rows = []
+    if button_text and button_url:
+        rows.append([InlineKeyboardButton(text=button_text, url=button_url)])
+    rows.extend(
+        [
+            [InlineKeyboardButton(text="✏️ Добавить текст", callback_data="broadcast_add_text")],
+            [InlineKeyboardButton(text="➕ Добавить URL-кнопку", callback_data="broadcast_add_button")],
+            [
+                InlineKeyboardButton(text="✅ Подтвердить", callback_data="confirm_broadcast"),
+                InlineKeyboardButton(text="❌ Отмена", callback_data="cancel_broadcast"),
+            ],
+            [InlineKeyboardButton(text="↩️ Назад", callback_data="admin_back_to_panel")],
+        ]
+    )
+    return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
+async def show_broadcast_preview(target, state: FSMContext):
+    data = await state.get_data()
+    chat_id = data.get("chat_id")
+    msg_id = data.get("msg_id")
+    extra_text = data.get("extra_text")
+    button_text = data.get("button_text")
+    button_url = data.get("button_url")
+
+    await target.answer("👁 <b>Предпросмотр рассылки:</b>", parse_mode="HTML")
+    if chat_id and msg_id:
+        await target.bot.copy_message(target.chat.id, chat_id, msg_id)
+    if extra_text:
+        await target.answer(extra_text, parse_mode="HTML")
+    await target.answer(
+        "Настройте рассылку или подтвердите отправку.",
+        reply_markup=broadcast_preview_kb(button_text, button_url),
+    )
+    await state.set_state(Broadcast.waiting_for_confirmation)
+
+
+@router.message(Broadcast.waiting_for_message)
+async def broadcast_receive_message(message: Message, state: FSMContext):
+    if message.from_user.id not in ADMIN_IDS:
+        await state.clear()
+        return
+    await state.update_data(
+        msg_id=message.message_id,
+        chat_id=message.chat.id,
+        button_text=None,
+        button_url=None,
+        extra_text=None,
+    )
+    await show_broadcast_preview(message, state)
+
+
+@router.callback_query(Broadcast.waiting_for_confirmation, F.data == "broadcast_add_text")
+async def broadcast_add_text(callback: CallbackQuery, state: FSMContext):
+    if callback.from_user.id not in ADMIN_IDS:
+        return
+    await callback.answer()
+    await callback.message.edit_text(
+        "✏️ Отправьте дополнительный текст для рассылки:",
+        reply_markup=InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    InlineKeyboardButton(
+                        text="↩️ Назад к предпросмотру",
+                        callback_data="broadcast_back_preview",
+                    )
+                ]
+            ]
+        ),
+    )
+    await state.set_state(Broadcast.waiting_for_text)
+
+
+@router.message(Broadcast.waiting_for_text)
+async def broadcast_receive_text(message: Message, state: FSMContext):
+    if message.from_user.id not in ADMIN_IDS:
+        await state.clear()
+        return
+    text = (message.html_text or message.text or "").strip()
+    if not text:
+        await message.answer("❌ Отправьте непустой текст.")
+        return
+    await state.update_data(extra_text=text)
+    await show_broadcast_preview(message, state)
+
+
+@router.callback_query(
+    StateFilter(Broadcast.waiting_for_button, Broadcast.waiting_for_text),
+    F.data == "broadcast_back_preview",
+)
+async def broadcast_back_preview(callback: CallbackQuery, state: FSMContext):
+    if callback.from_user.id not in ADMIN_IDS:
+        return
+    await callback.answer()
+    await safe_delete_message(callback.message)
+    await show_broadcast_preview(callback.message, state)
+
+
+@router.callback_query(Broadcast.waiting_for_confirmation, F.data == "broadcast_add_button")
+async def broadcast_add_button(callback: CallbackQuery, state: FSMContext):
+    if callback.from_user.id not in ADMIN_IDS:
+        return
+    await callback.answer()
+    await callback.message.edit_text(
+        "Отправьте кнопку в формате: <code>Текст | https://example.com</code>",
+        parse_mode="HTML",
+        reply_markup=InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    InlineKeyboardButton(
+                        text="↩️ Назад к предпросмотру",
+                        callback_data="broadcast_back_preview",
+                    )
+                ]
+            ]
+        ),
+    )
+    await state.set_state(Broadcast.waiting_for_button)
+
+
+@router.message(Broadcast.waiting_for_button)
+async def broadcast_receive_button(message: Message, state: FSMContext):
+    if message.from_user.id not in ADMIN_IDS:
+        await state.clear()
+        return
+    parts = (message.text or "").split("|", 1)
+    if len(parts) != 2 or not parts[1].strip().startswith(("https://", "http://", "tg://")):
+        await message.answer(
+            "❌ Формат неверный. Пример: <code>Сайт | https://example.com</code>",
+            parse_mode="HTML",
+        )
+        return
+    text, url = parts[0].strip(), parts[1].strip()
+    if not text or len(text) > 64:
+        await message.answer("❌ Текст кнопки должен содержать от 1 до 64 символов.")
+        return
+    await state.update_data(button_text=text, button_url=url)
+    await show_broadcast_preview(message, state)
+
+
 @router.callback_query(
     Broadcast.waiting_for_confirmation,
     F.data == "cancel_broadcast",
@@ -125,39 +284,27 @@ async def broadcast_confirm(
                 "chat not found",
             )
 
-            if any(
-                marker in normalized_error
-                for marker in blocked_markers
-            ):
+            if any(marker in normalized_error for marker in blocked_markers):
                 blocked += 1
                 await db.log_action(
                     admin_id,
                     "broadcast_unreachable",
-                    (
-                        f"user_id={user_id}; "
-                        f"error={error_text}"
-                    ),
+                    f"user_id={user_id}; error={error_text}",
                 )
             else:
                 other_errors += 1
                 await db.log_action(
                     admin_id,
                     "broadcast_delivery_error",
-                    (
-                        f"user_id={user_id}; "
-                        f"error={error_text}"
-                    ),
+                    f"user_id={user_id}; error={error_text}",
                 )
 
         finally:
-            # Небольшая пауза снижает риск ограничений Telegram.
             await asyncio.sleep(0.05)
 
     report_details = (
-        f"total={len(users)}; "
-        f"successful={successful}; "
-        f"blocked={blocked}; "
-        f"errors={other_errors}"
+        f"total={len(users)}; successful={successful}; "
+        f"blocked={blocked}; errors={other_errors}"
     )
 
     await db.log_action(
@@ -183,11 +330,14 @@ async def broadcast_confirm(
 
 @router.callback_query(F.data == "admin_download_users")
 async def download_users_file(callback: types.CallbackQuery):
-    if callback.from_user.id not in ADMIN_IDS: return
+    if callback.from_user.id not in ADMIN_IDS:
+        return
     await callback.answer("⏳ Формируем Excel-таблицу...")
 
     async with aiosqlite.connect(db.DB_PATH) as connection:
-        cursor = await connection.execute("SELECT user_id, username, first_name, last_name FROM users ORDER BY ROWID ASC")
+        cursor = await connection.execute(
+            "SELECT user_id, username, first_name, last_name FROM users ORDER BY ROWID ASC"
+        )
         rows = await cursor.fetchall()
 
     if not rows:
@@ -202,12 +352,26 @@ async def download_users_file(callback: types.CallbackQuery):
 
     for idx, user in enumerate(rows, 1):
         uid, username, first_name, last_name = user
-        ws.append([idx, uid, f"@{username}" if username else "—", first_name or "—", last_name or "—"])
+        ws.append(
+            [
+                idx,
+                uid,
+                f"@{username}" if username else "—",
+                first_name or "—",
+                last_name or "—",
+            ]
+        )
 
     output = io.BytesIO()
     wb.save(output)
     output.seek(0)
 
-    input_file = BufferedInputFile(output.getvalue(), filename=f"users_table_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx")
-    await callback.message.answer_document(document=input_file, caption=f"📊 **Таблица пользователей готова!** (Всего: {len(rows)})", parse_mode="Markdown")
-
+    input_file = BufferedInputFile(
+        output.getvalue(),
+        filename=f"users_table_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx",
+    )
+    await callback.message.answer_document(
+        document=input_file,
+        caption=f"📊 **Таблица пользователей готова!** (Всего: {len(rows)})",
+        parse_mode="Markdown",
+    )
