@@ -86,8 +86,6 @@ from . import advertising
 from . import social_features_ui
 from . import community_ui
 from . import visible_button_aliases
-from .legacy_runtime_pruning import install_legacy_runtime_pruning
-install_legacy_runtime_pruning(menus=menus, callbacks_profile=callbacks_profile)
 from . import ui_route_repairs
 from . import payment_guard
 from . import duel_creation_payments
